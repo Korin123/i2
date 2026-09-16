@@ -5,18 +5,17 @@
 # /commands/srvr + mntr, Solr CLUSTERSTATUS as the Solr admin, Liberty
 # /api/v1/health/live as the ADT admin. Checks run inside the cluster via kubectl exec;
 # passwords are read from Key Vault and passed on stdin, never on a command line.
-# Needs: az, kubectl, kubelogin, jq.
+# Needs az; kubectl, kubelogin and jq are installed if missing.
 source "$(dirname "$0")/00-common.sh"
 : "${AKS:?}"; : "${ACR:?}"; : "${MI_FQDN:?}"; : "${I2_VERSION:?}"
 set +e   # a failing check must not stop the others
-ns=i2analyze
+
 ACR_LS="${ACR}.azurecr.io"
 COLLECTIONS=(main_index match_index1 match_index2 highlight_index chart_index vq_index recordshare_index daod_index)
 DB_STEPS=(create_dba create_db_roles grant_permissions login_dbb login_i2analyze login_i2etl login_etl
           etl_sysadmin static_scripts dynamic_scripts role_i2_public role_deletion_rule)
 
-az aks get-credentials -g "$RG" -n "$AKS" --overwrite-existing >/dev/null
-kubelogin convert-kubeconfig -l azurecli >/dev/null
+aks_login
 kv() { az keyvault secret show --vault-name "$KV" -n "$1" --query value -o tsv; }
 
 failures=()

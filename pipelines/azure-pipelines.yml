@@ -2,8 +2,14 @@
 # locally and from any CI (a GitHub Actions workflow can call the same scripts).
 # Runs on a self-hosted agent on the VNet for the private KV/ACR/AKS.
 #
-# Image build (scripts/30) is done LOCALLY with ADT on a build box
-# (i2-recommended) and is not a cloud stage by default - see docs/deployment.md.
+# Controlled deployment:
+# - A push to main runs Validate only. Nothing is deployed automatically.
+# - Deploy stages run only on a manual run ("Run pipeline"), and only the stages you tick.
+#   Pick components to redeploy just what you fixed, and use the preview options to see
+#   the changes (Bicep what-if / kubectl diff) before applying them.
+# - Image build (scripts/30) is done locally with ADT in the dev container (i2-recommended),
+#   not here. Deploy stages check the images they need exist in ACR first.
+# See docs/how-to/deploy-with-the-pipeline.md.
 
 trigger:
   branches:
@@ -14,12 +20,53 @@ trigger:
       - bicep/**
       - k8s/**
       - scripts/**
+      - images/**
       - pipelines/**
 
+parameters:
+  - name: deployInfra
+    displayName: 'Infra: deploy Bicep (incl. SQL MI)'
+    type: boolean
+    default: false
+  - name: infraWhatIf
+    displayName: 'Infra: preview only (what-if, no changes)'
+    type: boolean
+    default: true
+  - name: seedSecrets
+    displayName: 'Secrets: seed missing secrets + certs into Key Vault'
+    type: boolean
+    default: false
+  - name: reissueCerts
+    displayName: 'Secrets: reissue these certs (space separated, e.g. "solr zookeeper")'
+    type: string
+    default: ' '
+  - name: deployWorkload
+    displayName: 'Workload: deploy to AKS'
+    type: boolean
+    default: true
+  - name: components
+    displayName: 'Workload: components (all, or any of: base zookeeper solr-init solr collections liberty connectors ingress)'
+    type: string
+    default: 'all'
+  - name: workloadDryRun
+    displayName: 'Workload: preview only (kubectl diff, no changes)'
+    type: boolean
+    default: false
+  - name: bootstrapData
+    displayName: 'Data: run db-init (Information Store)'
+    type: boolean
+    default: false
+  - name: runSanity
+    displayName: 'Verify: run sanity checks'
+    type: boolean
+    default: true
+
 variables:
-  - group: i2-alpha                 # SUBSCRIPTION_ID, TENANT_ID, etc.
+  - group: i2-alpha                 # SUBSCRIPTION_ID, TENANT_ID, RG, KV, ACR, AKS, MI_FQDN, ...
   - name: serviceConnection
     value: 'DFN-ADO-CONN'
+  - name: isManual
+    value: $[eq(variables['Build.Reason'], 'Manual')]
 
 pool:
   name: 'alpha-vnet'               # self-hosted, on-network
@@ -27,7 +74,7 @@ pool:
 stages:
   - stage: Validate
     jobs:
-      - job: build
+      - job: validate
         steps:
           - task: AzureCLI@2
             displayName: 'bicep build'
@@ -38,27 +85,39 @@ stages:
               inlineScript: |
                 az bicep restore --file bicep/main.bicep
                 az bicep build --file bicep/main.bicep
+          - bash: |
+              set -e
+              for f in scripts/*.sh images/*/*.sh; do bash -n "$f"; done
+              echo "shell syntax ok"
+            displayName: 'script syntax'
 
+  # Each deploy stage runs when: manual run + its box ticked + no earlier stage failed.
+  # Unticked stages are skipped and do not block later ones; a failed stage stops all later
+  # ones (each stage depends on every earlier stage).
   - stage: DeployInfra
     dependsOn: Validate
+    condition: and(succeeded(), eq(variables.isManual, true), eq('${{ parameters.deployInfra }}', 'true'))
     jobs:
       - deployment: infra
-        environment: i2-alpha
+        environment: i2-alpha           # approvals/checks configured on the environment
         strategy:
           runOnce:
             deploy:
               steps:
                 - checkout: self
                 - task: AzureCLI@2
-                  displayName: 'Deploy infra (incl. SQL MI)'
+                  displayName: ${{ iif(parameters.infraWhatIf, 'What-if infra (no changes)', 'Deploy infra (incl. SQL MI)') }}
                   inputs:
                     azureSubscription: $(serviceConnection)
                     scriptType: bash
                     scriptLocation: inlineScript
                     inlineScript: bash scripts/10-deploy-infra.sh
+                  env:
+                    WHAT_IF: ${{ parameters.infraWhatIf }}
 
   - stage: SeedSecrets
-    dependsOn: DeployInfra
+    dependsOn: [ Validate, DeployInfra ]
+    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.seedSecrets }}', 'true'))
     jobs:
       - job: seed
         steps:
@@ -69,9 +128,12 @@ stages:
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: bash scripts/20-seed-secrets-pki.sh
+            env:
+              REISSUE_CERTS: ${{ parameters.reissueCerts }}
 
   - stage: DeployWorkload
-    dependsOn: SeedSecrets
+    dependsOn: [ Validate, DeployInfra, SeedSecrets ]
+    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.deployWorkload }}', 'true'))
     jobs:
       - deployment: k8s
         environment: i2-alpha
@@ -81,17 +143,18 @@ stages:
               steps:
                 - checkout: self
                 - task: AzureCLI@2
-                  displayName: 'Apply manifests'
+                  displayName: '${{ iif(parameters.workloadDryRun, ''Diff'', ''Apply'') }} manifests: ${{ parameters.components }}'
                   inputs:
                     azureSubscription: $(serviceConnection)
                     scriptType: bash
                     scriptLocation: inlineScript
-                    inlineScript: |
-                      az aks install-cli
-                      bash scripts/40-deploy-workload.sh
+                    inlineScript: bash scripts/40-deploy-workload.sh ${{ replace(parameters.components, ',', ' ') }}
+                  env:
+                    DRY_RUN: ${{ parameters.workloadDryRun }}
 
   - stage: BootstrapData
-    dependsOn: DeployWorkload
+    dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
+    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.bootstrapData }}', 'true'))
     jobs:
       - deployment: bootstrap
         environment: i2-alpha
@@ -101,7 +164,7 @@ stages:
               steps:
                 - checkout: self
                 - task: AzureCLI@2
-                  displayName: 'db_init'
+                  displayName: 'db_init (resumes from the last completed step)'
                   inputs:
                     azureSubscription: $(serviceConnection)
                     scriptType: bash
@@ -109,7 +172,8 @@ stages:
                     inlineScript: bash scripts/50-bootstrap-data.sh
 
   - stage: Sanity
-    dependsOn: BootstrapData
+    dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload, BootstrapData ]
+    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.runSanity }}', 'true'))
     jobs:
       - job: sanity
         steps:

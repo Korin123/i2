@@ -78,7 +78,9 @@ i2-analyze-azure/
 7. Bootstrap data (Information Store schema; Solr cluster + collections are initialised in step 6): `scripts/50-bootstrap-data.sh`.
 8. Verify: `scripts/60-sanity.sh`.
 
-The Azure DevOps pipeline (`pipelines/azure-pipelines.yml`) runs the same scripts as ordered stages.
+The Azure DevOps pipeline (`pipelines/azure-pipelines.yml`) runs the same scripts as ordered stages. Pushes to `main` only validate; deploys run manually, stage by stage, with previews (what-if / diff) and per-component redeploys.
+
+Step-by-step guides for these and for fixing and redeploying: [`docs/how-to/`](docs/how-to/README.md).
 
 ## Status
 

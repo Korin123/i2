@@ -30,14 +30,16 @@ done
 
 # Solr security.json (BasicAuth + rule-based authz), as ADT's create_solr_security:
 # credential = base64(sha256(sha256(salt_bytes + password))) + " " + base64(salt).
-# Regenerated whenever a Solr user password was (re)seeded.
+# Regenerated whenever a Solr user password was (re)seeded, or with REGENERATE_SOLR_SECURITY=true
+# (after changing a Solr password in Key Vault).
 solr_cred() { # password
   local salt; salt="$(openssl rand 32 | base64)"
   local digest; digest="$( { printf '%s' "$salt" | base64 -d; printf '%s' "$1"; } \
     | openssl dgst -sha256 -binary | openssl dgst -sha256 -binary | base64)"
   echo "$digest $salt"
 }
-if $seeded_solr_users || ! kv_has solr-security-json; then
+regen="${REGENERATE_SOLR_SECURITY:-false}"
+if $seeded_solr_users || [[ "${regen,,}" == true ]] || ! kv_has solr-security-json; then
   cat > security.json <<EOF
 {
   "authentication": {
@@ -91,7 +93,7 @@ leaf() { # name  "SAN,SAN,..."  [extendedKeyUsage]
 
 # StatefulSet pods are addressed per pod (SOLR_HOST, ZK_HOST), so cover the headless
 # service subdomains, short and fully qualified.
-ns=i2analyze
+ns=i2analyze   # namespace in the cert SANs
 svc_sans() { # service
   echo "DNS:$1,DNS:$1.$ns.svc.cluster.local,DNS:*.$1,DNS:*.$1.$ns,DNS:*.$1.$ns.svc.cluster.local"
 }
