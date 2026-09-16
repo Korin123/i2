@@ -3,7 +3,7 @@
 End-to-end order. Scripts in `scripts/` are CI-agnostic; `pipelines/azure-pipelines.yml` runs them as stages. i2's recommendation is to build and push the images with ADT locally, then deploy from Azure.
 
 ## Prerequisites
-- i2 licence + distribution. On a build box with Docker, clone https://github.com/i2group/analyze-deployment-tooling and run its `bootstrap` (pulls `i2eng-analyze-containers-client:<version>`). Obtain the i2 base images and the shared config.
+- i2 licence + distribution. In the dev container (from WSL 2), run `scripts/05-install-adt.sh` (ADT bootstrap, pulls `i2eng-analyze-containers-client:<version>`). Obtain the i2 base images and the shared config.
 - Azure: subscription, region uksouth, existing VNet with the i2 /24 added, ACR, Key Vault, a self-hosted agent on the VNet.
 - Naming module `br/core:naming:latest` available to Bicep.
 

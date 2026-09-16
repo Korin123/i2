@@ -20,7 +20,7 @@ done
 log "2) Build the configured Liberty image with ADT (local Docker + distribution)"
 cat <<'NOTE'
    On the build box, with the ADT bootstrap run and the base-demo config linked:
-     ./bootstrap                                   # pulls i2eng-analyze-containers-client
+     scripts/05-install-adt.sh                     # ADT bootstrap, pulls i2eng-analyze-containers-client
      manage-environment -t link -y                 # link the base-demo shared config
      deploy -c base-demo -t package                # builds liberty_configured_redhat:base-demo-<ver>
      deploy -t generate-db-scripts -y              # generates the ISTORE SQL (used by db_init)

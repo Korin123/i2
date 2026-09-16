@@ -1,29 +1,50 @@
 {
-  "name": "i2 Analyze on Azure",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
-  "features": {
-    // az + bicep for scripts/10-deploy-infra.sh and the pipeline stages
-    "ghcr.io/devcontainers/features/azure-cli:1": {
-      "installBicep": true
-    },
-    // ADT runs in its own dev container and builds liberty_configured_redhat into the
-    // host daemon; scripts/30-build-images.sh tags + pushes that image, so share the host daemon
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
-  },
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  // One container for both halves of the build: i2's ADT dev image (builds the
+  // configured Liberty image, generates DB scripts / Solr schemas) plus the Azure
+  // tooling (az, Bicep, kubectl, kubelogin) that pushes to ACR and deploys to AKS.
+  // Based on ADT's own .devcontainer (v3.2.2). Open from WSL 2 / macOS, not a Windows path.
+  "name": "i2 Analyze on Azure (ADT + Azure)",
+  "image": "i2group/i2eng-analyze-containers-dev:1.2",
+  "remoteUser": "vscode",
+  "runArgs": [ "--init" ],
+  "overrideCommand": false,
+  "mounts": [
+    // ADT drives the host Docker daemon; images it builds are then pushed from here
+    "source=/var/run/docker.sock,target=/var/run/docker-host.sock,type=bind",
+    // keep az login across rebuilds
+    "source=i2-azure-config,target=/home/vscode/.azure,type=volume"
+  ],
+  // ADT bind-mounts workspace paths into the containers it starts on the host daemon,
+  // so the workspace must sit at the same path inside and outside the container
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached",
+  "workspaceFolder": "${localWorkspaceFolder}",
+  "onCreateCommand": "bash .devcontainer/on-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
   "remoteEnv": {
-    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin"
+    "DEVCONTAINER": "true",
+    "DOCKER_BUILDKIT": "1",
+    "HOST_HOME": "${localEnv:HOME}",
+    // ADT is installed into adt/ (git-ignored) by scripts/05-install-adt.sh
+    "WORKSPACE": "${containerWorkspaceFolder}/adt",
+    "ANALYZE_CONTAINERS_ROOT_DIR": "${containerWorkspaceFolder}/adt",
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin:${containerWorkspaceFolder}/adt/scripts"
   },
   "customizations": {
     "vscode": {
       "extensions": [
+        "ms-azuretools.vscode-docker",
         "ms-azuretools.vscode-bicep",
         "ms-azuretools.vscode-azurecli",
         "ms-kubernetes-tools.vscode-kubernetes-tools",
-        "redhat.vscode-yaml",
         "ms-azure-devops.azure-pipelines",
+        "redhat.vscode-xml",
+        "redhat.vscode-yaml",
+        "vscjava.vscode-java-pack",
         "timonwong.shellcheck"
-      ]
+      ],
+      "settings": {
+        "remote.autoForwardPorts": false
+      }
     }
   }
 }

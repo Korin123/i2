@@ -19,3 +19,6 @@ node_modules/
 # i2 licensed distribution - obtained separately under i2 licence, never committed
 config/distribution/
 *.tar.gz
+
+# ADT installed locally by scripts/05-install-adt.sh (includes the licensed toolkit in pre-reqs/)
+adt/
