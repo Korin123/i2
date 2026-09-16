@@ -25,20 +25,20 @@ Same application, different platform layer. Source of the AWS side: i2 `ansible-
 |---|---|
 | `pki` | `scripts/20-seed-secrets-pki.sh` generates the CA + leaf certs into Key Vault |
 | `provision_secrets` | same script seeds the password set into Key Vault (idempotent) |
-| `pull_ecr_images` / `pull_remote_images` | `scripts/30-build-images.sh` (az acr import / docker push to ACR) |
+| `pull_ecr_images` / `pull_remote_images` | `scripts/30-build-images.sh` (az acr import / docker push of the ADT-built `solr_redhat` to ACR) |
 | `liberty_build` | `scripts/30-build-images.sh` runs ADT `deploy -c base-demo -t package` locally, pushes the configured image to ACR |
 | `zookeeper_otb` / `solr_otb` | `k8s/zookeeper-statefulset.yaml` / `k8s/solr-statefulset.yaml` (containers, not OTB on VMs) |
 | `postgres` | replaced by SQL Managed Instance (`bicep/modules/sql-mi.bicep`) |
 | `db_init` | `k8s/jobs/db-init-job.yaml` runs the ADT DB scripts against the MI (MSSQL path) |
-| `solr_collections` | `k8s/jobs/solr-collections-job.yaml` generates schemas and creates the 8 collections |
+| `solr_collections` | schemas generated at build time (`scripts/30`), then Jobs `k8s/jobs/solr-zk-init-job.yaml` (chroot, urlScheme, security.json, configsets) and `solr-collections-job.yaml` (8 collections), run by `scripts/40` |
 | `liberty_ecs` | `k8s/liberty-deployment.yaml` (AKS Deployment instead of an ECS service) |
 | `start` / `stop` / `teardown` | `kubectl` scale + `az` (documented in operations) |
 | `sanity_tests` | `scripts/60-sanity.sh` |
 
-## Application contract (unchanged from the AWS reference)
+## Application contract (ADT 3.2.2, which the AWS reference consumes)
 
 - Liberty `/opal` on 9443, stateless, HADR mode on.
-- Solr TLS on 8983, BasicAuth (user `solr`), 8 collections (main_index, match_index1, match_index2, highlight_index, chart_index, vq_index, recordshare_index, daod_index), numShards=4, replicationFactor=1.
-- ZooKeeper secure client 2281, digest auth (user `solr`, shared with Solr BasicAuth), quorum ports 2888/3888.
-- Secret set: DB passwords (postgres/dba/dbb/etl/i2etl/i2analyze/i2public), liberty admin, solr_auth (Solr BasicAuth + ZK digest). PKI: CA + leaf cert/key for postgres/solr/zookeeper/liberty/jwt/external_gateway_user.
+- Solr (ADT `solr_redhat` image) TLS on 8983, `SOLR_HOST` = pod FQDN, BasicAuth via `security.json` (admin `solr`, application `liberty`), 8 collections (main_index, match_index1, match_index2, highlight_index, chart_index, vq_index, recordshare_index, daod_index), numShards=4, replicationFactor=1.
+- ZooKeeper secure client 2281, digest ACLs set by clients (users `solr` and `readonly-user`), quorum ports 2888/3888.
+- Secret set: DB passwords (postgres/dba/dbb/etl/i2etl/i2analyze/i2public), liberty admin, Solr admin + application digest passwords, ZK digest + read-only digest passwords, `security.json`. PKI: CA + leaf cert/key for postgres/solr/solr-client/zookeeper/liberty/jwt/external_gateway_user.
 - TLS end to end, offline-first (nodes pull only from the private ACR), no inbound SSH.

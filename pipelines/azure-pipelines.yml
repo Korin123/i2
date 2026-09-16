@@ -101,7 +101,7 @@ stages:
               steps:
                 - checkout: self
                 - task: AzureCLI@2
-                  displayName: 'db_init + solr_collections'
+                  displayName: 'db_init'
                   inputs:
                     azureSubscription: $(serviceConnection)
                     scriptType: bash

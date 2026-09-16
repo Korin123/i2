@@ -1,5 +1,5 @@
-// Private AKS cluster. Zone-redundant system + memory-weighted user pool for
-// the i2 stateful workloads (Solr/ZooKeeper). Azure CNI overlay (Cilium),
+// Private AKS cluster. Zone-redundant system pool, memory-weighted user pool for
+// ZooKeeper/Liberty and a dedicated tainted Solr pool. Azure CNI overlay (Cilium),
 // Entra + Azure RBAC, workload identity, KV secrets provider, private API.
 import { getResourceName } from 'br/core:naming:latest'
 param workload string
@@ -12,6 +12,9 @@ param logAnalyticsWorkspaceId string
 param acrId string
 @allowed([ 'loadBalancer', 'userDefinedRouting' ])
 param outboundType string = 'loadBalancer'
+@description('Dedicated Solr pool: one node per Solr replica (zone anti-affinity).')
+param solrNodeCount int = 2
+param solrVmSize string = 'Standard_E8s_v5'
 param tags object
 
 var aksName = getResourceName('aksCluster', workload, environment, '001')
@@ -71,7 +74,25 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
   }
 }
 
-resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+// Solr only (tainted), the AKS equivalent of i2's dedicated Solr EC2. A child resource
+// rather than agentPoolProfiles so it can be added to an existing cluster.
+resource solrPool 'Microsoft.ContainerService/managedClusters/agentPools@2024-09-01' = {
+  parent: aks
+  name: 'i2solr'
+  properties: {
+    mode: 'User'
+    count: solrNodeCount
+    vmSize: solrVmSize
+    vnetSubnetID: nodeSubnetId
+    availabilityZones: [ '1', '2', '3' ]
+    osDiskType: 'Managed'
+    type: 'VirtualMachineScaleSets'
+    nodeLabels: { workload: 'i2-solr' }
+    nodeTaints: [ 'workload=solr:NoSchedule' ]
+  }
+}
+
+resource acrPull'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(aks.id, acrId, 'acrpull')
   scope: resourceGroup()
   properties: {

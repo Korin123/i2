@@ -39,7 +39,7 @@ spec:
             - { name: ZOO_DIGEST_USERNAME, value: "solr" }
             - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
             - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
-            - { name: SOLR_HTTP_BASIC_AUTH_USER, value: "solr" }
+            - { name: SOLR_HTTP_BASIC_AUTH_USER, value: "liberty" }   # Solr application user (security.json)
             - { name: SOLR_HTTP_BASIC_AUTH_PASSWORD_FILE, value: /etc/i2secrets/SOLR_HTTP_BASIC_AUTH_PASSWORD }
             - { name: GATEWAY_SSL_CONNECTION, value: "true" }
             - { name: SSL_OUTBOUND_PRIVATE_KEY_FILE, value: /etc/i2secrets/gateway.key }

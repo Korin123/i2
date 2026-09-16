@@ -51,7 +51,8 @@ i2-analyze-azure/
     modules/                network, keyvault, acr, aks, monitoring, workload-identity, storage, sql-mi
     parameters/             *.bicepparam (placeholders; real values via pipeline variables)
   k8s/                      Kubernetes manifests (Solr, ZooKeeper, Liberty, connectors, services, ingress)
-    jobs/                   db_init and solr_collections bootstrap Jobs
+    jobs/                   db_init, solr-zk-init and solr-collections Jobs
+  images/solr-init/         Solr cluster init image (ADT solr_client + generated configsets)
   scripts/                  CI-agnostic deploy logic (run locally or from any pipeline)
   pipelines/                azure-pipelines.yml (Azure DevOps)
   config/                   where the i2 shared config lands (distribution obtained separately)
@@ -71,9 +72,9 @@ i2-analyze-azure/
 2. Fill `bicep/parameters/alpha.bicepparam` (or supply via pipeline variables). No secrets in the file.
 3. Deploy infrastructure: `scripts/10-deploy-infra.sh`.
 4. Seed the secret and PKI set into Key Vault: `scripts/20-seed-secrets-pki.sh`.
-5. Build and push the images with ADT locally (i2-recommended): on a build box with Docker and the licensed distribution, ADT builds the configured Liberty image and you push it plus the base images to ACR: `scripts/30-build-images.sh`.
-6. Deploy the workload: `scripts/40-deploy-workload.sh`.
-7. Bootstrap data (Information Store schema + Solr collections): `scripts/50-bootstrap-data.sh`.
+5. Build and push the images with ADT in the dev container (i2-recommended): ADT builds the configured Liberty and `solr_redhat` images, the script generates the Solr configsets into `i2-solr-init` and pushes them to ACR: `scripts/30-build-images.sh`.
+6. Deploy the workload (ZooKeeper, Solr cluster init, Solr, collections, Liberty): `scripts/40-deploy-workload.sh`.
+7. Bootstrap data (Information Store schema; Solr cluster + collections are initialised in step 6): `scripts/50-bootstrap-data.sh`.
 8. Verify: `scripts/60-sanity.sh`.
 
 The Azure DevOps pipeline (`pipelines/azure-pipelines.yml`) runs the same scripts as ordered stages.

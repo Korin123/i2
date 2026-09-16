@@ -1,5 +1,8 @@
-# SolrCloud (2) on AKS - i2 image, TLS on 8983, BasicAuth (user solr), ZK over
-# SSL on 2281 with digest. Secrets from Key Vault at /etc/i2secrets.
+# SolrCloud (2) on AKS, per ADT run_solr / images-and-containers/solr: the ADT-built
+# solr_redhat image (i2eng-solr + i2 plugin jars), TLS on 8983, SOLR_HOST = pod FQDN
+# (covered by the solr cert SANs), ZK over SSL on 2281 with digest (solr + readonly-user).
+# BasicAuth comes from security.json in ZooKeeper (Job i2-solr-zk-init runs first).
+# Dedicated i2solr node pool (tainted), replacing i2's dedicated Solr EC2.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata: { name: solr, namespace: i2analyze }
@@ -12,7 +15,9 @@ spec:
     spec:
       serviceAccountName: i2-solr
       securityContext: { fsGroup: 8983, fsGroupChangePolicy: OnRootMismatch }
-      nodeSelector: { workload: i2-analyze }
+      nodeSelector: { workload: i2-solr }
+      tolerations:
+        - { key: workload, operator: Equal, value: solr, effect: NoSchedule }
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -20,19 +25,24 @@ spec:
               topologyKey: topology.kubernetes.io/zone
       containers:
         - name: solr
-          image: __ACR__/i2group/i2eng-solr:9.9
+          image: __ACR__/i2group/solr_redhat:__I2_VERSION__
           ports: [ { containerPort: 8983, name: solr } ]
           env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - { name: SOLR_HOST, value: "$(POD_NAME).solr-headless.i2analyze.svc.cluster.local" }
             - { name: SERVER_SSL, value: "true" }
             - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
             - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }
             - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
             - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
-            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
-            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
-            - { name: SOLR_HTTP_BASIC_AUTH_USER, value: "solr" }
-            - { name: SOLR_HTTP_BASIC_AUTH_PASSWORD_FILE, value: /etc/i2secrets/SOLR_HTTP_BASIC_AUTH_PASSWORD }
             - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281/is_cluster" }
+            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
+            - name: ZOO_DIGEST_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-solr-credentials, key: ZOO_DIGEST_PASSWORD } }
+            - { name: ZOO_DIGEST_READONLY_USERNAME, value: "readonly-user" }
+            - name: ZOO_DIGEST_READONLY_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-solr-credentials, key: ZOO_DIGEST_READONLY_PASSWORD } }
             - { name: SOLR_JAVA_MEM, value: "-Xms4g -Xmx4g" }
           readinessProbe: { tcpSocket: { port: 8983 }, initialDelaySeconds: 30, periodSeconds: 15 }
           resources: { requests: { cpu: "1", memory: "6Gi" }, limits: { cpu: "2", memory: "8Gi" } }

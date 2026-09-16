@@ -22,3 +22,6 @@ config/distribution/
 
 # ADT installed locally by scripts/05-install-adt.sh (includes the licensed toolkit in pre-reqs/)
 adt/
+
+# Solr configsets generated at build time by scripts/30-build-images.sh
+images/solr-init/generated_config/

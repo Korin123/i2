@@ -1,13 +1,13 @@
-# i2-solr-collections - SolrCloud initialisation. After Solr is ready: creates the 8 i2 Analyze collections (ADT create_solr_collections).
-# numShards/replicationFactor as i2's ansible-i2a reference.
+# i2-solr-zk-init - SolrCloud initialisation. Before Solr starts: creates the /is_cluster chroot, sets urlScheme=https, uploads
+# security.json and the 8 configsets (ADT configure_zk_for_solr_cluster + configure_solr_collections).
 # Image: images/solr-init (ADT solr_client_redhat + generated configsets). Idempotent.
 apiVersion: batch/v1
 kind: Job
-metadata: { name: i2-solr-collections, namespace: i2analyze }
+metadata: { name: i2-solr-zk-init, namespace: i2analyze }
 spec:
   backoffLimit: 4
   template:
-    metadata: { labels: { app: i2-solr-collections, azure.workload.identity/use: "true" } }
+    metadata: { labels: { app: i2-solr-zk-init, azure.workload.identity/use: "true" } }
     spec:
       restartPolicy: Never
       serviceAccountName: i2-bootstrap
@@ -15,7 +15,7 @@ spec:
       containers:
         - name: solr-init
           image: __ACR__/i2group/i2-solr-init:__I2_VERSION__
-          args: [ "/opt/solr-init.sh", "collections" ]
+          args: [ "/opt/solr-init.sh", "zk" ]
           env:
             - { name: ZK_MEMBERS, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281" }
             - { name: SOLR_CLUSTER_ID, value: "is_cluster" }

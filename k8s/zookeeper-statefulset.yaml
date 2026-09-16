@@ -1,6 +1,7 @@
-# ZooKeeper ensemble (3) on AKS - i2 image, SSL secure client on 2281, digest
-# auth. Secrets projected from Key Vault at /etc/i2secrets (server.key/.cer, CA.cer,
-# ZOO_DIGEST_PASSWORD). __ACR__ substituted by the deploy script.
+# ZooKeeper ensemble (3) on AKS - i2 image, per ADT run_zk / images-and-containers/zookeeper:
+# SSL secure client on 2281 (plain 2181 in-pod only), quorum 2888/3888. Digest ACLs are
+# applied by the Solr/Liberty clients, not configured on the server. Certs projected from
+# Key Vault at /etc/i2secrets. __ACR__ substituted by the deploy script.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata: { name: zookeeper, namespace: i2analyze }
@@ -33,14 +34,18 @@ spec:
             - { containerPort: 3888, name: election }
           env:
             - { name: ZOO_SECURE_CLIENT_PORT, value: "2281" }
+            - { name: ZOO_CLIENT_PORT, value: "2181" }
             - { name: ZOO_STANDALONE_ENABLED, value: "false" }
+            - { name: ZOO_MAX_CLIENT_CNXNS, value: "100" }
+            - { name: ZOO_4LW_COMMANDS_WHITELIST, value: "ruok, mntr, conf" }
+            # ADT uses a separate /datalog volume; kept on the data PVC here because
+            # volumeClaimTemplates are immutable on the existing StatefulSet
+            - { name: ZOO_DATA_LOG_DIR, value: /data/datalog }
             - { name: SERVER_SSL, value: "true" }
+            - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
             - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
             - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }
             - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
-            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
-            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
-            - { name: ZOO_4LW_COMMANDS_WHITELIST, value: "mntr,conf,ruok,srvr" }
             - name: ZOO_SERVERS
               value: >-
                 server.1=zookeeper-0.zookeeper-headless:2888:3888;2281
@@ -50,8 +55,11 @@ spec:
           resources: { requests: { cpu: "500m", memory: "1Gi" }, limits: { cpu: "1", memory: "2Gi" } }
           volumeMounts:
             - { name: data, mountPath: /data }
+            - { name: logs, mountPath: /logs }
             - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
       volumes:
+        - name: logs
+          emptyDir: {}
         - name: secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-zk-secrets } }
   volumeClaimTemplates:
