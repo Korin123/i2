@@ -6,9 +6,9 @@
     "ghcr.io/devcontainers/features/azure-cli:1": {
       "installBicep": true
     },
-    // ADT (scripts/30-build-images.sh) builds images with its own client container,
-    // so it needs a real Docker daemon with working bind mounts - hence DinD, not DooD
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    // ADT runs in its own dev container and builds liberty_configured_redhat into the
+    // host daemon; scripts/30-build-images.sh tags + pushes that image, so share the host daemon
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteEnv": {
