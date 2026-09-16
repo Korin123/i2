@@ -1,0 +1,122 @@
+# Azure DevOps pipeline. Thin - it runs the scripts in scripts/, which also run
+# locally and from any CI (a GitHub Actions workflow can call the same scripts).
+# Runs on a self-hosted agent on the VNet for the private KV/ACR/AKS.
+#
+# Image build (scripts/30) is done LOCALLY with ADT on a build box
+# (i2-recommended) and is not a cloud stage by default - see docs/deployment.md.
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - bicep/**
+      - k8s/**
+      - scripts/**
+      - pipelines/**
+
+variables:
+  - group: i2-alpha                 # SUBSCRIPTION_ID, TENANT_ID, etc.
+  - name: serviceConnection
+    value: 'DFN-ADO-CONN'
+
+pool:
+  name: 'alpha-vnet'               # self-hosted, on-network
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: build
+        steps:
+          - task: AzureCLI@2
+            displayName: 'bicep build'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az bicep restore --file bicep/main.bicep
+                az bicep build --file bicep/main.bicep
+
+  - stage: DeployInfra
+    dependsOn: Validate
+    jobs:
+      - deployment: infra
+        environment: i2-alpha
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: AzureCLI@2
+                  displayName: 'Deploy infra (incl. SQL MI)'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: bash scripts/10-deploy-infra.sh
+
+  - stage: SeedSecrets
+    dependsOn: DeployInfra
+    jobs:
+      - job: seed
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Seed PKI + secret set into Key Vault'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash scripts/20-seed-secrets-pki.sh
+
+  - stage: DeployWorkload
+    dependsOn: SeedSecrets
+    jobs:
+      - deployment: k8s
+        environment: i2-alpha
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: AzureCLI@2
+                  displayName: 'Apply manifests'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      az aks install-cli
+                      bash scripts/40-deploy-workload.sh
+
+  - stage: BootstrapData
+    dependsOn: DeployWorkload
+    jobs:
+      - deployment: bootstrap
+        environment: i2-alpha
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: AzureCLI@2
+                  displayName: 'db_init + solr_collections'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: bash scripts/50-bootstrap-data.sh
+
+  - stage: Sanity
+    dependsOn: BootstrapData
+    jobs:
+      - job: sanity
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Sanity checks'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash scripts/60-sanity.sh

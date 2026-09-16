@@ -1,0 +1,27 @@
+# Namespace + workload-identity service accounts. __WI_CLIENT_ID__ is the UAMI
+# client ID output by the infra deploy (workloadIdentityClientId); the deploy
+# script substitutes it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: i2analyze
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: i2-liberty, namespace: i2analyze, labels: { azure.workload.identity/use: "true" }, annotations: { azure.workload.identity/client-id: "__WI_CLIENT_ID__" } }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: i2-solr, namespace: i2analyze, labels: { azure.workload.identity/use: "true" }, annotations: { azure.workload.identity/client-id: "__WI_CLIENT_ID__" } }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: i2-zookeeper, namespace: i2analyze, labels: { azure.workload.identity/use: "true" }, annotations: { azure.workload.identity/client-id: "__WI_CLIENT_ID__" } }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: i2-connectors, namespace: i2analyze, labels: { azure.workload.identity/use: "true" }, annotations: { azure.workload.identity/client-id: "__WI_CLIENT_ID__" } }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: i2-bootstrap, namespace: i2analyze, labels: { azure.workload.identity/use: "true" }, annotations: { azure.workload.identity/client-id: "__WI_CLIENT_ID__" } }

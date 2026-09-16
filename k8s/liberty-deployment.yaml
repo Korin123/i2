@@ -1,0 +1,62 @@
+# Liberty (i2 Analyze app) on AKS - the CONFIGURED image built by ADT locally
+# and pushed to ACR. DB is Azure SQL Managed Instance (DB_DIALECT=sqlserver,
+# DB_SERVER=__MI_FQDN__). Secrets from Key Vault at /etc/i2secrets.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: liberty, namespace: i2analyze }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: liberty } }
+  template:
+    metadata: { labels: { app: liberty, azure.workload.identity/use: "true" } }
+    spec:
+      serviceAccountName: i2-liberty
+      nodeSelector: { workload: i2-analyze }
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector: { matchLabels: { app: liberty } }
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+        - name: liberty
+          image: __ACR__/i2group/liberty_configured_redhat:base-demo-__I2_VERSION__
+          ports: [ { containerPort: 9443, name: https } ]
+          env:
+            - { name: LICENSE, value: "ACCEPT" }
+            - { name: CONTEXT_ROOT, value: "opal" }
+            - { name: SERVER_SSL, value: "true" }
+            - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
+            - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }
+            - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+            - { name: DB_DIALECT, value: "sqlserver" }
+            - { name: DB_SERVER, value: "__MI_FQDN__" }
+            - { name: DB_PORT, value: "1433" }
+            - { name: DB_NAME, value: "ISTORE" }
+            - { name: DB_USERNAME, value: "i2analyze" }
+            - { name: DB_PASSWORD_FILE, value: /etc/i2secrets/DB_PASSWORD }
+            - { name: DB_SSL_CONNECTION, value: "true" }
+            - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281/is_cluster" }
+            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
+            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
+            - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
+            - { name: SOLR_HTTP_BASIC_AUTH_USER, value: "solr" }
+            - { name: SOLR_HTTP_BASIC_AUTH_PASSWORD_FILE, value: /etc/i2secrets/SOLR_HTTP_BASIC_AUTH_PASSWORD }
+            - { name: GATEWAY_SSL_CONNECTION, value: "true" }
+            - { name: SSL_OUTBOUND_PRIVATE_KEY_FILE, value: /etc/i2secrets/gateway.key }
+            - { name: SSL_OUTBOUND_CERTIFICATE_FILE, value: /etc/i2secrets/gateway.cer }
+            - { name: SSL_OUTBOUND_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+            - { name: JWT_CERTIFICATE_FILE, value: /etc/i2secrets/jwt.cer }
+            - { name: JWT_PRIVATE_KEY_FILE, value: /etc/i2secrets/jwt.key }
+            - { name: ADT_ADMIN_USERNAME, value: "adt-admin" }
+            - { name: ADT_ADMIN_PASSWORD_FILE, value: /etc/i2secrets/ADT_ADMIN_PASSWORD }
+            - { name: LIBERTY_HADR_MODE, value: "1" }
+            - { name: FRONT_END_URI, value: "https://i2-analyze.internal/opal" }
+          # TCP probe: the app-config health path needs the configured image + data
+          # bootstrap. Switch to an HTTP probe on /opal once bootstrap is complete.
+          readinessProbe: { tcpSocket: { port: 9443 }, initialDelaySeconds: 45, periodSeconds: 15 }
+          resources: { requests: { cpu: "1", memory: "4Gi" }, limits: { cpu: "2", memory: "6Gi" } }
+          volumeMounts:
+            - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-liberty-secrets } }

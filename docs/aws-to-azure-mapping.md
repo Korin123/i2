@@ -1,0 +1,44 @@
+# Mapping to i2's ansible-i2a (AWS) reference
+
+Same application, different platform layer. Source of the AWS side: i2 `ansible-i2a` (AWS CDK brownfield stacks + the `i2group.adt` Ansible collection) and `analyze-deployment-tooling` (https://github.com/i2group/analyze-deployment-tooling).
+
+## Platform services
+
+| i2 ansible-i2a (AWS) | This repo (Azure) | Notes |
+|---|---|---|
+| AWS CDK brownfield stacks | Bicep (`bicep/`) | VNet imported, never created (brownfield) |
+| Ansible controller (EC2, SSM) | Pipeline stages calling `scripts/` | No controller VM; self-hosted agent on the VNet |
+| ECS Fargate (Liberty, connectors) | AKS Deployments | Stateless tier |
+| Dedicated EC2 (Solr, ZooKeeper) | AKS StatefulSets | Stable identity; see decisions.md |
+| RDS PostgreSQL 17 | Azure SQL Managed Instance (SQL Server) | Engine change; DB_DIALECT=sqlserver |
+| ECR | Azure Container Registry (private) | Images pushed by the local ADT build |
+| Secrets Manager | Azure Key Vault | Secret + PKI set |
+| SSM Parameter Store | Key Vault / App Configuration | Endpoints, ports |
+| S3 artefact bucket | Azure Blob storage | Distribution + shared config |
+| ALB / NLB (OIDC) | Application Gateway / internal LB + Entra | Internal only |
+| CloudWatch / CloudMap | Azure Monitor / private DNS | Logs, metrics, service discovery |
+| IAM roles / instance profiles | Managed identities + Azure RBAC | Workload identity for pods |
+
+## Ansible roles to Azure implementation
+
+| i2group.adt role | Azure equivalent here |
+|---|---|
+| `pki` | `scripts/20-seed-secrets-pki.sh` generates the CA + leaf certs into Key Vault |
+| `provision_secrets` | same script seeds the password set into Key Vault (idempotent) |
+| `pull_ecr_images` / `pull_remote_images` | `scripts/30-build-images.sh` (az acr import / docker push to ACR) |
+| `liberty_build` | `scripts/30-build-images.sh` runs ADT `deploy -c base-demo -t package` locally, pushes the configured image to ACR |
+| `zookeeper_otb` / `solr_otb` | `k8s/zookeeper-statefulset.yaml` / `k8s/solr-statefulset.yaml` (containers, not OTB on VMs) |
+| `postgres` | replaced by SQL Managed Instance (`bicep/modules/sql-mi.bicep`) |
+| `db_init` | `k8s/jobs/db-init-job.yaml` runs the ADT DB scripts against the MI (MSSQL path) |
+| `solr_collections` | `k8s/jobs/solr-collections-job.yaml` generates schemas and creates the 8 collections |
+| `liberty_ecs` | `k8s/liberty-deployment.yaml` (AKS Deployment instead of an ECS service) |
+| `start` / `stop` / `teardown` | `kubectl` scale + `az` (documented in operations) |
+| `sanity_tests` | `scripts/60-sanity.sh` |
+
+## Application contract (unchanged from the AWS reference)
+
+- Liberty `/opal` on 9443, stateless, HADR mode on.
+- Solr TLS on 8983, BasicAuth (user `solr`), 8 collections (main_index, match_index1, match_index2, highlight_index, chart_index, vq_index, recordshare_index, daod_index), numShards=4, replicationFactor=1.
+- ZooKeeper secure client 2281, digest auth (user `solr`, shared with Solr BasicAuth), quorum ports 2888/3888.
+- Secret set: DB passwords (postgres/dba/dbb/etl/i2etl/i2analyze/i2public), liberty admin, solr_auth (Solr BasicAuth + ZK digest). PKI: CA + leaf cert/key for postgres/solr/zookeeper/liberty/jwt/external_gateway_user.
+- TLS end to end, offline-first (nodes pull only from the private ACR), no inbound SSH.

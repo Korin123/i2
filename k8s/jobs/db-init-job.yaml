@@ -1,0 +1,41 @@
+# db_init - creates and initialises the Information Store on the SQL Managed
+# Instance (MSSQL path). Uses the ADT client image, which carries the generated
+# DB scripts (from `deploy -t generate-db-scripts`) and the ADT db-init scripts.
+# Equivalent to i2's db_init role: create DB, roles, DBA + app logins, static
+# then dynamic scripts. Idempotent - safe to re-run.
+apiVersion: batch/v1
+kind: Job
+metadata: { name: i2-db-init, namespace: i2analyze }
+spec:
+  backoffLimit: 2
+  template:
+    metadata: { labels: { app: i2-db-init, azure.workload.identity/use: "true" } }
+    spec:
+      restartPolicy: Never
+      serviceAccountName: i2-bootstrap
+      containers:
+        - name: db-init
+          image: __ACR__/i2group/i2eng-analyze-containers-client:__ADT_VERSION__
+          env:
+            - { name: LIC_AGREEMENT, value: "ACCEPT" }
+            - { name: DB_DIALECT, value: "sqlserver" }
+            - { name: DB_SERVER, value: "__MI_FQDN__" }
+            - { name: DB_PORT, value: "1433" }
+            - { name: DB_NAME, value: "ISTORE" }
+            - { name: DB_SSL_CONNECTION, value: "true" }
+            - { name: SA_USERNAME, value: "i2miadmin" }               # MI admin login
+            - { name: SA_PASSWORD_FILE, value: /etc/i2secrets/SA_PASSWORD }
+            - { name: DB_USERNAME, value: "i2analyze" }               # app user created here
+            - { name: DB_PASSWORD_FILE, value: /etc/i2secrets/DB_PASSWORD }
+            - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+          # The exact ADT entrypoint/scripts live in the client image. Wire the
+          # db-init sequence here (runDatabaseCreationScripts, create_db_roles,
+          # create logins/users, runStaticScripts, runDynamicScripts). i2 to
+          # confirm the MSSQL script names for 4.4.x.
+          command: [ "bash", "-lc" ]
+          args: [ "echo 'Run ADT db-init sequence against the MI (MSSQL). See docs/deployment.md step 5.'; exit 1" ]
+          volumeMounts:
+            - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-bootstrap-secrets } }

@@ -1,0 +1,33 @@
+# Headless services for the StatefulSets (stable pod DNS) + Liberty ClusterIP.
+# The database is Azure SQL Managed Instance (external to the cluster), so there
+# is no DB service here - Liberty connects to the MI FQDN.
+apiVersion: v1
+kind: Service
+metadata: { name: zookeeper-headless, namespace: i2analyze }
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: { app: zookeeper }
+  ports:
+    - { name: client-secure, port: 2281 }
+    - { name: server, port: 2888 }
+    - { name: election, port: 3888 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: solr-headless, namespace: i2analyze }
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: { app: solr }
+  ports:
+    - { name: solr, port: 8983 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: liberty, namespace: i2analyze }
+spec:
+  type: ClusterIP
+  selector: { app: liberty }
+  ports:
+    - { name: https, port: 9443, targetPort: 9443 }

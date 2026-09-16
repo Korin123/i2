@@ -1,0 +1,18 @@
+# Internal ingress to Liberty (9443, re-encrypt). Analyst access enters here from
+# the AVD estate; never internet-facing. Adjust host/class to your ingress controller.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: i2-analyze
+  namespace: i2analyze
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: i2-analyze.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: liberty, port: { number: 9443 } } }

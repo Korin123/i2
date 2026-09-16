@@ -1,0 +1,47 @@
+# SolrCloud (2) on AKS - i2 image, TLS on 8983, BasicAuth (user solr), ZK over
+# SSL on 2281 with digest. Secrets from Key Vault at /etc/i2secrets.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: solr, namespace: i2analyze }
+spec:
+  serviceName: solr-headless
+  replicas: 2
+  selector: { matchLabels: { app: solr } }
+  template:
+    metadata: { labels: { app: solr, azure.workload.identity/use: "true" } }
+    spec:
+      serviceAccountName: i2-solr
+      securityContext: { fsGroup: 8983, fsGroupChangePolicy: OnRootMismatch }
+      nodeSelector: { workload: i2-analyze }
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector: { matchLabels: { app: solr } }
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+        - name: solr
+          image: __ACR__/i2group/i2eng-solr:9.9
+          ports: [ { containerPort: 8983, name: solr } ]
+          env:
+            - { name: SERVER_SSL, value: "true" }
+            - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
+            - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }
+            - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+            - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
+            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
+            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
+            - { name: SOLR_HTTP_BASIC_AUTH_USER, value: "solr" }
+            - { name: SOLR_HTTP_BASIC_AUTH_PASSWORD_FILE, value: /etc/i2secrets/SOLR_HTTP_BASIC_AUTH_PASSWORD }
+            - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281/is_cluster" }
+            - { name: SOLR_JAVA_MEM, value: "-Xms4g -Xmx4g" }
+          readinessProbe: { tcpSocket: { port: 8983 }, initialDelaySeconds: 30, periodSeconds: 15 }
+          resources: { requests: { cpu: "1", memory: "6Gi" }, limits: { cpu: "2", memory: "8Gi" } }
+          volumeMounts:
+            - { name: data, mountPath: /var/solr }
+            - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-solr-secrets } }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec: { accessModes: [ "ReadWriteOnce" ], storageClassName: managed-csi-premium, resources: { requests: { storage: 128Gi } } }

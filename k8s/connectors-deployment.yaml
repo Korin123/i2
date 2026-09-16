@@ -1,0 +1,35 @@
+# i2 Connect connector (example) on AKS - mutual TLS on 3700. One Deployment per
+# connector so each external source scales independently. Replace the image and
+# add per-connector config as needed. Liberty presents the external_gateway_user
+# client cert; the connector validates it.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: connector-example, namespace: i2analyze }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: connector-example } }
+  template:
+    metadata: { labels: { app: connector-example, azure.workload.identity/use: "true" } }
+    spec:
+      serviceAccountName: i2-connectors
+      nodeSelector: { workload: i2-analyze }
+      containers:
+        - name: connector
+          image: __ACR__/i2group/i2eng-example-connector:latest
+          ports: [ { containerPort: 3700, name: https } ]
+          env:
+            - { name: SERVER_SSL, value: "true" }
+            - { name: GATEWAY_SSL_CONNECTION, value: "true" }
+          volumeMounts:
+            - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-liberty-secrets } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: connector-example, namespace: i2analyze }
+spec:
+  type: ClusterIP
+  selector: { app: connector-example }
+  ports: [ { name: https, port: 3700, targetPort: 3700 } ]

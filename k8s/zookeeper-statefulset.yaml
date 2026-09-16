@@ -1,0 +1,59 @@
+# ZooKeeper ensemble (3) on AKS - i2 image, SSL secure client on 2281, digest
+# auth. Secrets projected from Key Vault at /etc/i2secrets (server.key/.cer, CA.cer,
+# ZOO_DIGEST_PASSWORD). __ACR__ substituted by the deploy script.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: zookeeper, namespace: i2analyze }
+spec:
+  serviceName: zookeeper-headless
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector: { matchLabels: { app: zookeeper } }
+  template:
+    metadata: { labels: { app: zookeeper, azure.workload.identity/use: "true" } }
+    spec:
+      serviceAccountName: i2-zookeeper
+      nodeSelector: { workload: i2-analyze }
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector: { matchLabels: { app: zookeeper } }
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+        - name: zookeeper
+          image: __ACR__/i2group/i2eng-zookeeper:3.9
+          command: [ "bash", "-c" ]
+          args:
+            - |
+              export ZOO_MY_ID=$(( ${HOSTNAME##*-} + 1 ))
+              exec /docker-entrypoint.sh zkServer.sh start-foreground
+          ports:
+            - { containerPort: 2281, name: client-secure }
+            - { containerPort: 2888, name: server }
+            - { containerPort: 3888, name: election }
+          env:
+            - { name: ZOO_SECURE_CLIENT_PORT, value: "2281" }
+            - { name: ZOO_STANDALONE_ENABLED, value: "false" }
+            - { name: SERVER_SSL, value: "true" }
+            - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
+            - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }
+            - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
+            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
+            - { name: ZOO_4LW_COMMANDS_WHITELIST, value: "mntr,conf,ruok,srvr" }
+            - name: ZOO_SERVERS
+              value: >-
+                server.1=zookeeper-0.zookeeper-headless:2888:3888;2281
+                server.2=zookeeper-1.zookeeper-headless:2888:3888;2281
+                server.3=zookeeper-2.zookeeper-headless:2888:3888;2281
+          readinessProbe: { tcpSocket: { port: 2281 }, initialDelaySeconds: 15, periodSeconds: 10 }
+          resources: { requests: { cpu: "500m", memory: "1Gi" }, limits: { cpu: "1", memory: "2Gi" } }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-zk-secrets } }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec: { accessModes: [ "ReadWriteOnce" ], storageClassName: managed-csi-premium, resources: { requests: { storage: 16Gi } } }

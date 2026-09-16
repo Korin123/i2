@@ -1,0 +1,21 @@
+# Secrets and local env - never commit
+*.env
+.env
+.env.*
+env.sh
+scripts/env.sh
+!*.env.example
+secrets/
+*.pfx
+*.pem
+*.key
+*.cer
+kubeconfig*
+# Bicep build output
+*.json.bicep
+bicep/**/*.json
+# Node / tooling
+node_modules/
+# i2 licensed distribution - obtained separately under i2 licence, never committed
+config/distribution/
+*.tar.gz

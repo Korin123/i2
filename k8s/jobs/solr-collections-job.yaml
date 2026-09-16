@@ -1,0 +1,37 @@
+# solr_collections - generates the Solr schemas (i2 tools image), uploads the
+# configsets and creates the 8 i2 Analyze collections. Equivalent to i2's
+# solr_collections role. Idempotent. Collections: main_index, match_index1,
+# match_index2, highlight_index, chart_index, vq_index, recordshare_index,
+# daod_index (numShards=4, replicationFactor=1).
+apiVersion: batch/v1
+kind: Job
+metadata: { name: i2-solr-collections, namespace: i2analyze }
+spec:
+  backoffLimit: 2
+  template:
+    metadata: { labels: { app: i2-solr-collections, azure.workload.identity/use: "true" } }
+    spec:
+      restartPolicy: Never
+      serviceAccountName: i2-bootstrap
+      containers:
+        - name: solr-collections
+          image: __ACR__/i2group/i2eng-analyze-containers-client:__ADT_VERSION__
+          env:
+            - { name: LIC_AGREEMENT, value: "ACCEPT" }
+            - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281/is_cluster" }
+            - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
+            - { name: SOLR_HTTP_BASIC_AUTH_USER, value: "solr" }
+            - { name: SOLR_HTTP_BASIC_AUTH_PASSWORD_FILE, value: /etc/i2secrets/SOLR_HTTP_BASIC_AUTH_PASSWORD }
+            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
+            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
+            - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+          # generateSolrSchemas.sh + Configset UPLOAD + Collections CREATE live in
+          # the tools image. Wire the real invocation here; i2 to confirm the
+          # script path for 4.4.x.
+          command: [ "bash", "-lc" ]
+          args: [ "echo 'Run generateSolrSchemas.sh, upload configsets, create the 8 collections. See docs/deployment.md step 5.'; exit 1" ]
+          volumeMounts:
+            - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-solr-secrets } }
