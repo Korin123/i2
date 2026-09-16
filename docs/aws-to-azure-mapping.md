@@ -29,7 +29,7 @@ Same application, different platform layer. Source of the AWS side: i2 `ansible-
 | `liberty_build` | `scripts/30-build-images.sh` runs ADT `deploy -c base-demo -t package` locally, pushes the configured image to ACR |
 | `zookeeper_otb` / `solr_otb` | `k8s/zookeeper-statefulset.yaml` / `k8s/solr-statefulset.yaml` (containers, not OTB on VMs) |
 | `postgres` | replaced by SQL Managed Instance (`bicep/modules/sql-mi.bicep`) |
-| `db_init` | `k8s/jobs/db-init-job.yaml` runs the ADT DB scripts against the MI (MSSQL path) |
+| `db_init` | scripts generated at build time (`deploy -t generate-db-scripts`, baked into `images/db-init`), then Job `k8s/jobs/db-init-job.yaml` runs ADT's SQL Server sequence against the MI, resumable per step |
 | `solr_collections` | schemas generated at build time (`scripts/30`), then Jobs `k8s/jobs/solr-zk-init-job.yaml` (chroot, urlScheme, security.json, configsets) and `solr-collections-job.yaml` (8 collections), run by `scripts/40` |
 | `liberty_ecs` | `k8s/liberty-deployment.yaml` (AKS Deployment instead of an ECS service) |
 | `start` / `stop` / `teardown` | `kubectl` scale + `az` (documented in operations) |

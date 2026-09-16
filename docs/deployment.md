@@ -14,15 +14,16 @@ End-to-end order. Scripts in `scripts/` are CI-agnostic; `pipelines/azure-pipeli
 2. Secrets + PKI (`scripts/20-seed-secrets-pki.sh`): generate the i2 password set and the CA + leaf certs, store in Key Vault. Idempotent - existing secrets are reused, never overwritten (no re-passwording a live system). Solr/ZooKeeper secrets follow ADT 3.2.2: Solr BasicAuth users `solr` (admin) and `liberty` (application) with a generated `security.json`, ZooKeeper digest users `solr` and `readonly-user`, and a `solr-client` cert. Solr/ZooKeeper leaf certs carry the headless-service wildcard SANs the pods are addressed by; to reissue existing certs run with `REISSUE_CERTS="solr zookeeper"`.
 
 3. Build + push images with ADT in the dev container (`scripts/30-build-images.sh`), i2-recommended:
-   - `az acr import` the images used as-is (i2 ZooKeeper, ADT client) into ACR.
+   - `az acr import` the image used as-is (i2 ZooKeeper) into ACR.
    - Link the ADT environment to the `base-demo` shared config (`manage-environment -t link`) and build the configured Liberty image (`deploy -c base-demo -t package`, produces `liberty_configured_redhat:base-demo-<version>`).
    - Generate the Solr configsets from the assembled config with `i2a_tools_redhat generateSolrSchemas.sh`, and bake them into `i2-solr-init` (ADT `solr_client_redhat` + `images/solr-init/solr-init.sh`).
-   - Push the configured Liberty image, ADT's `solr_redhat` (i2eng-solr + i2 plugin jars) and `i2-solr-init` to ACR.
+   - Bake the scripts from `deploy -c base-demo -t generate-db-scripts` into `i2-db-init` (ADT `sqlserver_client_redhat` + `images/db-init/db-init.sh`).
+   - Push the configured Liberty image, ADT's `solr_redhat` (i2eng-solr + i2 plugin jars), `i2-solr-init` and `i2-db-init` to ACR.
    This runs on a build box with Docker and the distribution; it is not run in-cluster.
 
 4. Workload (`scripts/40-deploy-workload.sh`): `kubectl apply` in ADT's order - namespace, SecretProviderClass, services, ZooKeeper -> Job `i2-solr-zk-init` (create `/is_cluster`, `urlScheme=https`, upload `security.json` and the 8 configsets) -> Solr (dedicated `i2solr` node pool) -> Job `i2-solr-collections` (create the 8 collections) -> Liberty, connectors, ingress. The Jobs are idempotent and re-run on every deploy.
 
-5. Bootstrap data (`scripts/50-bootstrap-data.sh`): run the `db-init` Job (ADT DB scripts against the SQL MI, MSSQL path: create ISTORE, roles, app users, static then dynamic scripts).
+5. Bootstrap data (`scripts/50-bootstrap-data.sh`): run the `i2-db-init` Job - ADT's SQL Server sequence (`initialize_istore_database_for_sql_server` + `configure_istore_database`) against the MI as the MI admin login: create ISTORE (the generated creation script, or a plain `CREATE DATABASE` if Managed Instance rejects it), `dba` login/user, roles and grants, `dbb`/`i2analyze`/`i2etl`/`etl` logins, `etl` to sysadmin, static then dynamic scripts, `i2_public_role` and `deletion_by_rule` memberships. Each step is recorded as an `i2aks.<step>` extended property on ISTORE, so a failed run resumes where it stopped. The config must use `DB_DIALECT=sqlserver` when generating the scripts.
 
 6. Sanity (`scripts/60-sanity.sh`): ZK ruok/mntr, Solr mode=solrcloud and 8 collections present, MI reachable, Liberty health and context root.
 

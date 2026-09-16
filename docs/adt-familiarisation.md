@@ -72,3 +72,12 @@ The ansible-i2a notes above share one `solr-auth-password`. ADT 3.2.2 itself (`i
 - ZooKeeper env: `ZOO_SERVERS`, `ZOO_MY_ID`, `ZOO_SECURE_CLIENT_PORT=2281`, `ZOO_CLIENT_PORT=2181`, `ZOO_4LW_COMMANDS_WHITELIST="ruok, mntr, conf"`, `ZOO_MAX_CLIENT_CNXNS=100`, `SERVER_SSL`, `SSL_*`; volumes `/data`, `/datalog`, `/logs`.
 - Cluster init order: ZooKeeper -> `solr zk mkroot /is_cluster` -> `clusterprop urlScheme=https` -> `security.json` to `zk:/security.json` -> Solr -> `zk upconfig` per collection (match_index1/2 share `match_index`) -> Collections API CREATE.
 - Certs: every server component cert is for server and client auth; a separate `solrClient` cert for the client containers.
+
+## ADT 3.2.2 SQL Server Information Store sequence (read from the client image)
+
+`scripts/deploy` `initialize_sql_server` -> `initialize_istore_database` + `configure_istore_database`, each command in an ephemeral `sqlserver_client_redhat` container (sqlcmd, `SQLCMD_FLAGS="-N -b"` with TLS, ADT `/opt/db-scripts`, generated scripts at `/opt/databaseScripts/generated`):
+1. As SA: `runDatabaseCreationScripts.sh`, then `create_dba_login_and_user.sh` (login `dba`, role `dba_role`, sysadmin, SQLAgentUserRole in msdb, db_owner and schema grants on ISTORE).
+2. As dba: `create_db_roles.sh` (`etl_role`, `i2etl_role`, `i2analyze_role`, `i2_public_role`), `grant_permissions_to_roles.sh`.
+3. As dba: `create_db_login_and_user.sh` for `dbb` (db_backupoperator), `i2analyze`, `i2etl`, `etl` (their `_role`); `add_etl_user_to_sys_admin_role.sh`.
+4. As dba: `runStaticScripts.sh`, `runDynamicScripts.sh`, then `add_user_to_db_role.sh` `i2analyze` -> `i2_public_role`, `i2etl` -> `deletion_by_rule`.
+User names default to sa/dba/dbb/i2etl/etl/i2analyze/i2_public (`utils/common_variables.sh`). ADT's create/role scripts are not idempotent, which is why the AKS Job records completed steps.

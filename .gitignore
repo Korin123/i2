@@ -25,3 +25,5 @@ adt/
 
 # Solr configsets generated at build time by scripts/30-build-images.sh
 images/solr-init/generated_config/
+# Information Store scripts generated at build time by scripts/30-build-images.sh
+images/db-init/generated/

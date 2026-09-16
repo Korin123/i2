@@ -53,6 +53,7 @@ i2-analyze-azure/
   k8s/                      Kubernetes manifests (Solr, ZooKeeper, Liberty, connectors, services, ingress)
     jobs/                   db_init, solr-zk-init and solr-collections Jobs
   images/solr-init/         Solr cluster init image (ADT solr_client + generated configsets)
+  images/db-init/           Information Store init image (ADT sqlserver_client + generated DB scripts)
   scripts/                  CI-agnostic deploy logic (run locally or from any pipeline)
   pipelines/                azure-pipelines.yml (Azure DevOps)
   config/                   where the i2 shared config lands (distribution obtained separately)
