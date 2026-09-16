@@ -6,7 +6,7 @@ Run `scripts/60-sanity.sh`. It runs every check and lists all failures at the en
 
 | Failing check | Look at | Usual fix |
 |---|---|---|
-| `statefulset/... ready`, `deployment/liberty ready` | `kubectl get pods -n i2analyze`, then `kubectl describe pod <pod> -n i2analyze` | Image missing in ACR, secret not mounted, or not enough nodes. Fix, then redeploy that component |
+| `statefulset/... ready` | `kubectl get pods -n i2analyze`, then `kubectl describe pod <pod> -n i2analyze` | Image missing in ACR, secret not mounted, or not enough nodes. Fix, then redeploy that component |
 | `job ... succeeded` | `kubectl logs job/<job> -n i2analyze` | See [rerun-init-jobs.md](rerun-init-jobs.md) |
 | `solr pods on the i2solr node pool` | `kubectl get nodes -L workload` | Deploy the infra so the `i2solr` pool exists |
 | `zookeeper-N serving`, `one leader` | `kubectl logs zookeeper-N -n i2analyze` | Usually certificates or DNS: check the zookeeper cert covers `*.zookeeper-headless` |

@@ -9,7 +9,7 @@ Needed after a change to certificate names (SANs), or before they expire (825 da
 REISSUE_CERTS="solr zookeeper" scripts/20-seed-secrets-pki.sh
 kubectl rollout restart statefulset/zookeeper statefulset/solr -n i2analyze
 ```
-You can reissue `solr`, `solr-client`, `zookeeper`, `liberty`, `jwt`, `gateway` and `postgres`. Restart whatever uses them (for `liberty`, `deployment/liberty`). In the pipeline, put the names in **Secrets: reissue these certs**.
+You can reissue `solr`, `solr-client`, `zookeeper`, `liberty`, `jwt`, `gateway` and `postgres`. Restart whatever uses them (for `liberty`, `statefulset/liberty`). In the pipeline, put the names in **Secrets: reissue these certs**.
 
 ## Add a new secret
 

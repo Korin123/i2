@@ -64,7 +64,14 @@ want zookeeper   && { apply zookeeper-statefulset; rollout statefulset/zookeeper
 want solr-init   && { log "Solr cluster init in ZooKeeper"; run_job solr-zk-init-job i2-solr-zk-init; }
 want solr        && { apply solr-statefulset; rollout statefulset/solr; }
 want collections && { log "Solr collections"; run_job solr-collections-job i2-solr-collections; }
-want liberty     && { apply liberty-deployment; rollout deployment/liberty; }
+if want liberty; then
+  # Liberty moved from a Deployment to a StatefulSet (per-pod /data); remove the old one once
+  if [[ "$DRY_RUN" != true ]] && kubectl get deployment/liberty -n "$ns" >/dev/null 2>&1; then
+    log "replacing the old liberty Deployment with the StatefulSet"
+    kubectl delete deployment/liberty -n "$ns" --wait=true
+  fi
+  apply liberty-statefulset; rollout statefulset/liberty
+fi
 want connectors  && apply connectors-deployment
 want ingress     && apply ingress
 log "Done. Watch: kubectl get pods -n $ns -w   Verify: scripts/60-sanity.sh"

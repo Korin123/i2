@@ -18,7 +18,7 @@ In the pipeline, set **Workload: components** to the same names.
 
 | You changed | Redeploy |
 |---|---|
-| `k8s/liberty-deployment.yaml` or the Liberty image | `liberty` |
+| `k8s/liberty-statefulset.yaml` or the Liberty image | `liberty` |
 | `k8s/solr-statefulset.yaml` or the Solr image | `solr` |
 | `k8s/zookeeper-statefulset.yaml` | `zookeeper` |
 | `security.json`, Solr configsets, `images/solr-init` | `solr-init collections` |
@@ -33,4 +33,4 @@ Components always run in the safe order (ZooKeeper, Solr setup, Solr, collection
 ```bash
 kubectl rollout restart statefulset/solr -n i2analyze
 ```
-Use `statefulset/zookeeper` or `deployment/liberty` for the others.
+Use `statefulset/zookeeper` or `statefulset/liberty` for the others.

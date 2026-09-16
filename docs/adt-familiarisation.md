@@ -81,3 +81,15 @@ The ansible-i2a notes above share one `solr-auth-password`. ADT 3.2.2 itself (`i
 3. As dba: `create_db_login_and_user.sh` for `dbb` (db_backupoperator), `i2analyze`, `i2etl`, `etl` (their `_role`); `add_etl_user_to_sys_admin_role.sh`.
 4. As dba: `runStaticScripts.sh`, `runDynamicScripts.sh`, then `add_user_to_db_role.sh` `i2analyze` -> `i2_public_role`, `i2etl` -> `deletion_by_rule`.
 User names default to sa/dba/dbb/i2etl/etl/i2analyze/i2_public (`utils/common_variables.sh`). ADT's create/role scripts are not idempotent, which is why the AKS Job records completed steps.
+
+## ADT 3.2.2 Liberty contract (read from the client image)
+
+From `utils/server_functions.sh` `run_liberty`, `images/liberty_ubi_base` and the ADT Liberty image docs:
+- One persistent `/data` volume per Liberty server (jobs, record groups, charts); the pre-prod example runs liberty1 and liberty2 with separate volumes. Here: a StatefulSet with a volume per pod.
+- `ZK_HOST` is the ZooKeeper member list without the `/is_cluster` chroot (only Solr gets the chroot).
+- Solr as the application user `liberty` (`SOLR_HTTP_BASIC_AUTH_USER`); ZooKeeper digest user `solr`.
+- `LIBERTY_HADR_MODE=1`, `LIBERTY_HADR_POLL_INTERVAL=1`; `ADT_ADMIN_USERNAME`/`ADT_ADMIN_GROUP` = the ADT admin (`adt-admin`), which `deploy -t package` also bakes into `server.extensions.dev.xml` as administrator-role user.
+- `BASIC_AUTH_ENDPOINTS` (config-dev default `/api/v1/metrics /api/v1/gateway/reload /api/v1/health/live /api/v1/admin/*`), `WLP_LOGGING_CONSOLE_SOURCE=message,trace,accessLog,ffdc,audit`.
+- Certificates/keys documented as `*_FILE`; `DB_PASSWORD`, `ZOO_DIGEST_PASSWORD`, `SOLR_HTTP_BASIC_AUTH_PASSWORD` documented as plain env.
+- Optional, unset here: `SSL_ADDITIONAL_TRUST_CERTIFICATES`, `APP_SECRETS`, `CONNECTOR_URL_MAP` (needed only if the config uses `connectors-template.json`), `SERVER_EXTENSIONS_OVERRIDE`, `CAC_OVERRIDE`, `I2_DeploymentDisplayNameSuffix`. ADT's outbound CA bundle also includes an external CA; here outbound trusts the internal CA only.
+- Health: `/api/v1/health/live` with basic auth as the ADT admin.

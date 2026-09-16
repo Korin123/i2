@@ -1,16 +1,24 @@
-# Liberty (i2 Analyze app) on AKS - the CONFIGURED image built by ADT locally
-# and pushed to ACR. DB is Azure SQL Managed Instance (DB_DIALECT=sqlserver,
-# DB_SERVER=__MI_FQDN__). Secrets from Key Vault at /etc/i2secrets.
+# Liberty (i2 Analyze app) on AKS - the CONFIGURED image built by ADT locally and pushed
+# to ACR. Settings follow ADT 3.2.2 run_liberty (utils/server_functions.sh) and the ADT
+# Liberty image docs; DB is Azure SQL Managed Instance (DB_DIALECT=sqlserver).
+# StatefulSet because each Liberty server has its own /data volume (jobs, record groups,
+# charts), as ADT's pre-prod example gives liberty1/liberty2 separate volumes.
+# Certs/keys as *_FILE from Key Vault at /etc/i2secrets; passwords as env from the synced
+# i2-liberty-credentials Secret (the documented form for these variables).
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata: { name: liberty, namespace: i2analyze }
 spec:
+  serviceName: liberty-headless
   replicas: 2
+  podManagementPolicy: Parallel
   selector: { matchLabels: { app: liberty } }
   template:
     metadata: { labels: { app: liberty, azure.workload.identity/use: "true" } }
     spec:
       serviceAccountName: i2-liberty
+      # image runs as uid 1001 / gid 0 with a group-writable /data
+      securityContext: { fsGroup: 0, fsGroupChangePolicy: OnRootMismatch }
       nodeSelector: { workload: i2-analyze }
       affinity:
         podAntiAffinity:
@@ -24,6 +32,11 @@ spec:
           env:
             - { name: LICENSE, value: "ACCEPT" }
             - { name: CONTEXT_ROOT, value: "opal" }
+            - { name: FRONT_END_URI, value: "https://i2-analyze.internal/opal" }
+            # ADT config-dev default: endpoints that accept HTTP basic auth (used by the
+            # sanity health check as the ADT admin)
+            - { name: BASIC_AUTH_ENDPOINTS, value: "/api/v1/metrics /api/v1/gateway/reload /api/v1/health/live /api/v1/admin/*" }
+            - { name: WLP_LOGGING_CONSOLE_SOURCE, value: "message,trace,accessLog,ffdc,audit" }
             - { name: SERVER_SSL, value: "true" }
             - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
             - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }
@@ -33,30 +46,41 @@ spec:
             - { name: DB_PORT, value: "1433" }
             - { name: DB_NAME, value: "ISTORE" }
             - { name: DB_USERNAME, value: "i2analyze" }
-            - { name: DB_PASSWORD_FILE, value: /etc/i2secrets/DB_PASSWORD }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-liberty-credentials, key: DB_PASSWORD } }
             - { name: DB_SSL_CONNECTION, value: "true" }
-            - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281/is_cluster" }
+            # ADT passes the ZooKeeper members without the Solr chroot to Liberty
+            - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281" }
             - { name: ZOO_DIGEST_USERNAME, value: "solr" }
-            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
+            - name: ZOO_DIGEST_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-liberty-credentials, key: ZOO_DIGEST_PASSWORD } }
             - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
             - { name: SOLR_HTTP_BASIC_AUTH_USER, value: "liberty" }   # Solr application user (security.json)
-            - { name: SOLR_HTTP_BASIC_AUTH_PASSWORD_FILE, value: /etc/i2secrets/SOLR_HTTP_BASIC_AUTH_PASSWORD }
+            - name: SOLR_HTTP_BASIC_AUTH_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-liberty-credentials, key: SOLR_HTTP_BASIC_AUTH_PASSWORD } }
             - { name: GATEWAY_SSL_CONNECTION, value: "true" }
             - { name: SSL_OUTBOUND_PRIVATE_KEY_FILE, value: /etc/i2secrets/gateway.key }
             - { name: SSL_OUTBOUND_CERTIFICATE_FILE, value: /etc/i2secrets/gateway.cer }
             - { name: SSL_OUTBOUND_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
             - { name: JWT_CERTIFICATE_FILE, value: /etc/i2secrets/jwt.cer }
             - { name: JWT_PRIVATE_KEY_FILE, value: /etc/i2secrets/jwt.key }
+            # must match the administrator-role user ADT bakes in at package time (ADT_ADMIN)
             - { name: ADT_ADMIN_USERNAME, value: "adt-admin" }
-            - { name: ADT_ADMIN_PASSWORD_FILE, value: /etc/i2secrets/ADT_ADMIN_PASSWORD }
+            - { name: ADT_ADMIN_GROUP, value: "adt-admin" }
+            - name: ADT_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-liberty-credentials, key: ADT_ADMIN_PASSWORD } }
             - { name: LIBERTY_HADR_MODE, value: "1" }
-            - { name: FRONT_END_URI, value: "https://i2-analyze.internal/opal" }
-          # TCP probe: the app-config health path needs the configured image + data
-          # bootstrap. Switch to an HTTP probe on /opal once bootstrap is complete.
+            - { name: LIBERTY_HADR_POLL_INTERVAL, value: "1" }
+          # TCP probe: /api/v1/health/live needs basic auth (BASIC_AUTH_ENDPOINTS), which an
+          # httpGet probe cannot send; scripts/60-sanity.sh checks it with credentials.
           readinessProbe: { tcpSocket: { port: 9443 }, initialDelaySeconds: 45, periodSeconds: 15 }
           resources: { requests: { cpu: "1", memory: "4Gi" }, limits: { cpu: "2", memory: "6Gi" } }
           volumeMounts:
+            - { name: data, mountPath: /data }
             - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
       volumes:
         - name: secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-liberty-secrets } }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec: { accessModes: [ "ReadWriteOnce" ], storageClassName: managed-csi-premium, resources: { requests: { storage: 64Gi } } }

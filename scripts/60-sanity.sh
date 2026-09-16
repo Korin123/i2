@@ -32,7 +32,7 @@ ready_equals() { # kind/name expected
 }
 ready_equals statefulset/zookeeper 3
 ready_equals statefulset/solr 2
-ready_equals deployment/liberty "$(kubectl get deployment/liberty -n "$ns" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo 2)"
+ready_equals statefulset/liberty 2
 for job in i2-solr-zk-init i2-solr-collections i2-db-init; do
   [[ "$(kubectl get "job/$job" -n "$ns" -o jsonpath='{.status.succeeded}' 2>/dev/null)" == 1 ]] \
     && pass "job $job succeeded" || fail "job $job succeeded" "kubectl logs job/$job -n $ns"
@@ -75,13 +75,13 @@ else
   fail "solr CLUSTERSTATUS over TLS with BasicAuth" "$(head -c 300 <<<"$status")"
 fi
 # Liberty's application user must be accepted too (security.json credentials)
-code="$(kubectl exec -n "$ns" deploy/liberty -- bash -c \
+code="$(kubectl exec -n "$ns" liberty-0 -c liberty -- bash -c \
   'curl -s -o /dev/null -w "%{http_code}" --max-time 30 -u "liberty:$(</etc/i2secrets/SOLR_HTTP_BASIC_AUTH_PASSWORD)" \
      --cacert /etc/i2secrets/CA.cer "https://solr-0.solr-headless.i2analyze.svc.cluster.local:8983/solr/main_index/admin/ping?wt=json"' 2>/dev/null)"
 [[ "$code" == 200 ]] && pass "solr accepts the liberty application user" || fail "solr accepts the liberty application user" "HTTP ${code:-no response}"
 
 # --- SQL Managed Instance ------------------------------------------------------
-kubectl exec -n "$ns" deploy/liberty -- bash -c "timeout 10 bash -c '</dev/tcp/${MI_FQDN}/1433'" >/dev/null 2>&1 \
+kubectl exec -n "$ns" liberty-0 -c liberty -- bash -c "timeout 10 bash -c '</dev/tcp/${MI_FQDN}/1433'" >/dev/null 2>&1 \
   && pass "liberty reaches ${MI_FQDN}:1433" || fail "liberty reaches ${MI_FQDN}:1433"
 markers="$(kv SA_PASSWORD | kubectl run i2-sanity-sql -n "$ns" --rm -i --quiet --restart=Never \
   --image="${ACR_LS}/i2group/i2-db-init:${I2_VERSION}" \
