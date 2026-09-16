@@ -1,0 +1,29 @@
+{
+  "name": "i2 Analyze on Azure",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    // az + bicep for scripts/10-deploy-infra.sh and the pipeline stages
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "installBicep": true
+    },
+    // ADT (scripts/30-build-images.sh) builds images with its own client container,
+    // so it needs a real Docker daemon with working bind mounts - hence DinD, not DooD
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-bicep",
+        "ms-azuretools.vscode-azurecli",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "ms-azure-devops.azure-pipelines",
+        "timonwong.shellcheck"
+      ]
+    }
+  }
+}
