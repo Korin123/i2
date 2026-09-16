@@ -55,8 +55,13 @@ create_database() {
       echo "Generated creation script failed after creating ${DB_NAME}; inspect it before re-running" >&2
       exit 1
     fi
-    log "generated creation script not usable on Managed Instance - CREATE DATABASE [${DB_NAME}]"
+    log "generated creation script not usable on Managed Instance - CREATE DATABASE [${DB_NAME}] + IS schemas"
     sa_sql -Q "CREATE DATABASE [${DB_NAME}]"
+    # create_dba_login_and_user.sh grants on these straight after creation (ADT's SCHEMAS list)
+    local schema
+    for schema in IS_Meta IS_Data IS_FP IS_Public IS_WC IS_Vq IS_Core IS_Staging IS_Stg; do
+      sa_sql -d "${DB_NAME}" -Q "IF SCHEMA_ID(N'${schema}') IS NULL EXEC(N'CREATE SCHEMA [${schema}]')"
+    done
   fi
 }
 
