@@ -49,14 +49,19 @@ create_database() {
   if db_exists; then log "database ${DB_NAME} exists"; return; fi
   # ADT runs the generated creation script as SA. Managed Instance manages data/log
   # files itself, so if that script cannot run here fall back to a plain CREATE DATABASE
-  # (instance collation applies).
+  # with the Collation from the i2 config (baked in by scripts/30).
   if ! as "${SA_USERNAME}" "${SA_PW}" "${GENERATED_DIR}/runDatabaseCreationScripts.sh" || ! db_exists; then
     if db_exists; then
       echo "Generated creation script failed after creating ${DB_NAME}; inspect it before re-running" >&2
       exit 1
     fi
-    log "generated creation script not usable on Managed Instance - CREATE DATABASE [${DB_NAME}] + IS schemas"
-    sa_sql -Q "CREATE DATABASE [${DB_NAME}]"
+    local collation=""
+    [[ -f "${GENERATED_DIR}/istore-collation" ]] && collation="$(<"${GENERATED_DIR}/istore-collation")"
+    if [[ -n "${collation}" && ! "${collation}" =~ ^[A-Za-z0-9_]+$ ]]; then
+      echo "Invalid Collation '${collation}' in the i2 config" >&2; exit 1
+    fi
+    log "generated creation script not usable on Managed Instance - CREATE DATABASE [${DB_NAME}]${collation:+ COLLATE ${collation}} + IS schemas"
+    sa_sql -Q "CREATE DATABASE [${DB_NAME}]${collation:+ COLLATE ${collation}}"
     # create_dba_login_and_user.sh grants on these straight after creation (ADT's SCHEMAS list)
     local schema
     for schema in IS_Meta IS_Data IS_FP IS_Public IS_WC IS_Vq IS_Core IS_Staging IS_Stg; do
@@ -81,6 +86,12 @@ add_to_role() { # user role
 }
 
 create_database   # marker lives in the database, so this step checks existence instead
+# tempdb uses the instance collation, so a different database collation can cause
+# collation conflicts in i2 queries that use temporary tables
+db_coll="$(sa_sql -Q "SET NOCOUNT ON; SELECT CONVERT(nvarchar(128), DATABASEPROPERTYEX(N'${DB_NAME}', 'Collation'))" | tr -d '[:space:]')"
+inst_coll="$(sa_sql -Q "SET NOCOUNT ON; SELECT CONVERT(nvarchar(128), SERVERPROPERTY('Collation'))" | tr -d '[:space:]')"
+log "collation: database ${db_coll}, instance ${inst_coll}"
+[[ "${db_coll}" == "${inst_coll}" ]] || echo "WARNING: database and instance collations differ" >&2
 step create_dba          create_dba
 step create_db_roles     as "${DBA_USERNAME}" "${DBA_PW}" /opt/db-scripts/create_db_roles.sh
 step grant_permissions   as "${DBA_USERNAME}" "${DBA_PW}" /opt/db-scripts/grant_permissions_to_roles.sh

@@ -49,6 +49,10 @@ spec:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: i2-liberty-credentials, key: DB_PASSWORD } }
             - { name: DB_SSL_CONNECTION, value: "true" }
+            # Managed Instance presents a public Microsoft-chain certificate (ADT: external
+            # systems must be trusted explicitly); seeded by scripts/20-seed-secrets-pki.sh
+            - name: SSL_ADDITIONAL_TRUST_CERTIFICATES
+              valueFrom: { secretKeyRef: { name: i2-liberty-credentials, key: SSL_ADDITIONAL_TRUST_CERTIFICATES } }
             # ADT passes the ZooKeeper members without the Solr chroot to Liberty
             - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281" }
             - { name: ZOO_DIGEST_USERNAME, value: "solr" }

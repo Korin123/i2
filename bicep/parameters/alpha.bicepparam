@@ -24,6 +24,8 @@ param allowedTestIps = []
 // SQL Managed Instance
 param sqlMiAdminLogin = 'i2miadmin'
 // sqlMiAdminPassword is a secure param - supplied by the pipeline from Key Vault.
-param sqlMiCollation = 'Latin1_General_100_CI_AS'  // CONFIRM vs i2 4.4.x prereqs (immutable)
+// IMMUTABLE once the MI exists. Must equal Collation in the i2 config's
+// InfoStoreNamesSQLServer.properties (scripts/30-build-images.sh prints both and warns).
+param sqlMiCollation = 'Latin1_General_100_CI_AS'
 param sqlMiVCores = 8
 param sqlMiEntraAdminGroupObjectId = ''

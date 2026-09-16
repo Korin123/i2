@@ -66,6 +66,33 @@ EOF
   log "seeded solr-security-json (re-run the solr-zk-init Job to push it to ZooKeeper)"
 fi
 
+# Trust for external systems (ADT SSL_ADDITIONAL_TRUST_CERTIFICATES): certificate checks
+# cannot be turned off, and Managed Instance presents a certificate from a public Microsoft
+# chain, not our internal CA. Seeds the Azure SQL root CAs once. No outbound internet on the
+# agent? Supply a PEM bundle: TRUST_CERTS_FILE=roots.pem. Refresh: REFRESH_TRUST_CERTS=true.
+TRUST_CERT_URLS=(
+  "https://cacerts.digicert.com/DigiCertGlobalRootG2.crt.pem"
+  "https://cacerts.digicert.com/DigiCertGlobalRootCA.crt.pem"
+  "https://www.microsoft.com/pkiops/certs/Microsoft%20RSA%20Root%20Certificate%20Authority%202017.crt"
+)
+refresh="${REFRESH_TRUST_CERTS:-false}"
+if [[ "${refresh,,}" == true ]] || ! kv_has ssl-additional-trust-certificates; then
+  : > trust.pem
+  if [[ -n "${TRUST_CERTS_FILE:-}" ]]; then
+    cat "$TRUST_CERTS_FILE" >> trust.pem
+  else
+    for url in "${TRUST_CERT_URLS[@]}"; do
+      curl -fsSL "$url" -o root.crt
+      # DigiCert serves PEM, Microsoft serves DER
+      openssl x509 -in root.crt -out root.pem 2>/dev/null || openssl x509 -inform DER -in root.crt -out root.pem
+      cat root.pem >> trust.pem
+    done
+  fi
+  grep -q "BEGIN CERTIFICATE" trust.pem || { echo "no certificates in the trust bundle" >&2; exit 1; }
+  kv_set_file ssl-additional-trust-certificates trust.pem
+  log "seeded ssl-additional-trust-certificates ($(grep -c 'BEGIN CERTIFICATE' trust.pem) certs)"
+fi
+
 # PKI - CA once, then leaf cert/key per component. Regenerate only if the CA is absent.
 if ! kv_has i2-ca-cert; then
   log "generating CA"

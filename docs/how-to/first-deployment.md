@@ -2,6 +2,7 @@
 
 Run from the dev container, or tick the same stages in the pipeline ([deploy-with-the-pipeline.md](deploy-with-the-pipeline.md)). Check each step worked before moving on.
 
+0. **Before the Managed Instance exists**, set the collation. It cannot change afterwards. Read `Collation` from `InfoStoreNamesSQLServer.properties` in your i2 config (in the dev container after `deploy -c base-demo -t package`: `grep -r Collation adt/.tmp/.configuration --include=InfoStoreNamesSQLServer.properties`) and set `sqlMiCollation` in `bicep/parameters/alpha.bicepparam` to the same value. Also check with the VNet owner that the VNet's DNS resolves `*.database.windows.net` and nothing blocks the AKS subnet reaching the MI subnet on 1433.
 1. **Preview the infrastructure**, then deploy it. SQL Managed Instance takes hours the first time.
    ```bash
    WHAT_IF=true scripts/10-deploy-infra.sh

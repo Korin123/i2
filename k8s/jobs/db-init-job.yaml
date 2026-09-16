@@ -24,6 +24,7 @@ spec:
             - { name: DB_NAME, value: "ISTORE" }
             - { name: SA_USERNAME, value: "i2miadmin" }               # MI admin login (bicep sql-mi adminLogin)
             - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+            - { name: SSL_ADDITIONAL_TRUST_CERTIFICATES_FILE, value: /etc/i2secrets/additional-trust-certificates.cer }
           volumeMounts:
             - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
       volumes:

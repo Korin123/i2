@@ -57,6 +57,18 @@ gen="${ADT_DIR}/configs/${CONFIG_NAME}/database-scripts/generated"
 [ -d "$gen/static" ] || { echo "no generated DB scripts at $gen - run deploy -c ${CONFIG_NAME} -t generate-db-scripts first" >&2; exit 1; }
 rm -rf "$root/images/db-init/generated"
 cp -r "$gen" "$root/images/db-init/generated"
+# The Information Store collation is an i2 config setting (Collation in
+# InfoStoreNamesSQLServer.properties). Bake it in for the Managed Instance fallback,
+# and compare it with the instance collation, which is fixed when the MI is created.
+props="$(find "$cfg" -name InfoStoreNamesSQLServer.properties | head -1)"
+collation="$( [ -n "$props" ] && sed -n 's/^[[:space:]]*Collation[[:space:]]*=[[:space:]]*//p' "$props" | tr -d '[:space:]' | tail -1)"
+printf '%s' "$collation" > "$root/images/db-init/generated/istore-collation"
+mi_collation="$(sed -n "s/^param sqlMiCollation *= *'\([^']*\)'.*/\1/p" "$root/${BICEP_PARAM:-bicep/parameters/alpha.bicepparam}" 2>/dev/null)"
+log "Information Store collation from the i2 config: ${collation:-<not set: instance default>}; MI (bicepparam): ${mi_collation:-<unknown>}"
+if [[ -n "$collation" && -n "$mi_collation" && "$collation" != "$mi_collation" ]]; then
+  echo "WARNING: config Collation '$collation' differs from sqlMiCollation '$mi_collation'." >&2
+  echo "         Set sqlMiCollation to match BEFORE the Managed Instance is created (it cannot change later)." >&2
+fi
 docker build --build-arg "BASE_IMAGE=sqlserver_client_redhat:${I2_VERSION}" \
   -t "${ACR_LS}/i2group/i2-db-init:${I2_VERSION}" "$root/images/db-init"
 
