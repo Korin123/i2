@@ -94,7 +94,7 @@ The container uses a ready-made image, `ghcr.io/<owner>/i2-devcontainer:latest`:
 
 - **Built by:** GitHub Actions ([.github/workflows/devcontainer-image.yml](../../.github/workflows/devcontainer-image.yml)), whenever `.devcontainer/image/` changes on `main`, or by hand: GitHub → Actions → **Dev container image** → **Run workflow**.
 - **Update a tool version:** change the version in [.devcontainer/image/Dockerfile](../../.devcontainer/image/Dockerfile), push, wait for the workflow, then **F1 → Dev Containers: Rebuild Container**.
-- **Once, after the first build:** make the image public so any PC can download it without signing in. GitHub → your profile → **Packages** → `i2-devcontainer` → **Package settings** → **Change visibility** → **Public**.
+- **Who can download it:** anyone, without signing in, while the repository is public. If a pull says `denied`, make the package public: GitHub → your profile → **Packages** → `i2-devcontainer` → **Package settings** → **Change visibility** → **Public**.
 - **Your own copy of this repo:** change the owner in the `image` line of `.devcontainer/adt/devcontainer.json`.
 
 ## Certificate errors (corporate network)
@@ -130,7 +130,7 @@ The container uses a ready-made image, `ghcr.io/<owner>/i2-devcontainer:latest`:
 | VS Code window goes **blank** | The folder was opened from a Windows path (for example `D:\...`). Close it and open the WSL copy (step 4) |
 | `code: command not found` in Ubuntu | Install VS Code on Windows (tick **Add to PATH**), then close and reopen Ubuntu |
 | `az: command not found` in the container | The container is using an old image. **F1 → Dev Containers: Rebuild Container** |
-| **Reopen in Container** fails with `denied` or `unauthorized` pulling `ghcr.io/...i2-devcontainer` | The image isn't public yet: see [The dev container image](#the-dev-container-image) |
+| **Reopen in Container** fails with `denied` or `unauthorized` pulling `ghcr.io/...i2-devcontainer` | The image package is private: see [The dev container image](#the-dev-container-image) |
 | **Reopen in Container** fails with a Docker error | Docker Desktop not running, or WSL integration for Ubuntu is off (step 1) |
 | Can't find the folder | In Ubuntu: `ls ~/dev/projects`. In Windows File Explorer: **Linux → Ubuntu → home → \<you\> → dev → projects → i2** |
 | Which Linux do I have? | PowerShell: `wsl -l -v`; the one marked `*` is the default |
