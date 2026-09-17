@@ -45,7 +45,7 @@ param sqlMiCollation = 'Latin1_General_100_CI_AS'
 param sqlMiVCores = 8                     // alpha/test: 4
 param sqlMiStorageSizeInGB = 512          // alpha/test: 32
 param sqlMiZoneRedundant = true           // alpha/test: false
-param sqlMiBackupStorageRedundancy = 'ZRS' // alpha/test: 'LRS'
+param sqlMiBackupStorageRedundancy = 'Zone' // alpha/test: 'Local'
 param sqlMiEntraAdminGroupObjectId = ''
 
 param tags = {

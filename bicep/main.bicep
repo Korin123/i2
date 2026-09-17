@@ -70,9 +70,9 @@ param sqlMiStorageSizeInGB int = 512
 @description('MI zone redundancy. Off for cheaper non-production environments.')
 param sqlMiZoneRedundant bool = true
 
-@description('MI backup storage redundancy.')
-@allowed([ 'LRS', 'ZRS', 'GRS' ])
-param sqlMiBackupStorageRedundancy string = 'ZRS'
+@description('MI backup storage redundancy: Local, Zone, Geo or GeoZone.')
+@allowed([ 'Local', 'Zone', 'Geo', 'GeoZone' ])
+param sqlMiBackupStorageRedundancy string = 'Zone'
 
 @description('Key Vault purge protection. Set false only for a throwaway environment you will destroy and recreate with the same names.')
 param keyVaultPurgeProtection bool = true

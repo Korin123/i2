@@ -19,8 +19,8 @@ param storageSizeInGB int = 512
 @allowed([ 'LicenseIncluded', 'BasePrice' ])
 param licenseType string = 'LicenseIncluded'
 param zoneRedundant bool = true
-@allowed([ 'LRS', 'ZRS', 'GRS' ])
-param backupStorageRedundancy string = 'ZRS'
+@allowed([ 'Local', 'Zone', 'Geo', 'GeoZone' ])
+param backupStorageRedundancy string = 'Zone'
 @allowed([ 'Proxy', 'Redirect' ])
 param proxyOverride string = 'Proxy'
 param entraAdminGroupObjectId string = ''

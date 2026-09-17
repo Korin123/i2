@@ -42,5 +42,5 @@ param sqlMiCollation = 'Latin1_General_100_CI_AS'
 param sqlMiVCores = 4
 param sqlMiStorageSizeInGB = 32
 param sqlMiZoneRedundant = false
-param sqlMiBackupStorageRedundancy = 'LRS'
+param sqlMiBackupStorageRedundancy = 'Local'
 param sqlMiEntraAdminGroupObjectId = ''
