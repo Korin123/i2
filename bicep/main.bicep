@@ -37,7 +37,7 @@ param existingVnetResourceGroupName string = ''
 @description('existing mode: resource group holding the private DNS zones (privatelink.vaultcore.azure.net, privatelink.azurecr.io, privatelink.blob.core.windows.net) linked to the VNet.')
 param privateDnsResourceGroupName string = existingVnetResourceGroupName
 
-@description('Object ID of the AKS admin Entra group (cluster-admin binding). Zeros placeholder is skipped.')
+@description('Object ID of the i2 admin Entra group: AKS cluster admin, Grafana admin and ACR push. Zeros placeholder is skipped.')
 param aksAdminGroupObjectId string = '00000000-0000-0000-0000-000000000000'
 
 @description('AKS egress model.')
@@ -63,6 +63,19 @@ param sqlMiCollation string = 'Latin1_General_100_CI_AS'
 
 @description('MI vCores (GP Gen5 4-80).')
 param sqlMiVCores int = 8
+
+@description('MI storage in GB (32 minimum, in steps of 32).')
+param sqlMiStorageSizeInGB int = 512
+
+@description('MI zone redundancy. Off for cheaper non-production environments.')
+param sqlMiZoneRedundant bool = true
+
+@description('MI backup storage redundancy.')
+@allowed([ 'LRS', 'ZRS', 'GRS' ])
+param sqlMiBackupStorageRedundancy string = 'ZRS'
+
+@description('Key Vault purge protection. Set false only for a throwaway environment you will destroy and recreate with the same names.')
+param keyVaultPurgeProtection bool = true
 
 @description('Optional Entra admin group object ID for MI management-plane admin.')
 param sqlMiEntraAdminGroupObjectId string = ''
@@ -150,6 +163,7 @@ module keyVault 'modules/keyvault.bicep' = {
     privateDnsZoneVaultId: dnsZoneVaultId
     deployerObjectId: deployerObjectId
     allowedTestIps: allowedTestIps
+    enablePurgeProtection: keyVaultPurgeProtection
     tags: tags
   }
 }
@@ -162,6 +176,7 @@ module acr 'modules/acr.bicep' = {
     subnetId: pepSubnetId
     privateDnsZoneAcrId: dnsZoneAcrId
     allowedTestIps: allowedTestIps
+    pushGroupObjectId: aksAdminGroupObjectId
     tags: tags
   }
 }
@@ -214,6 +229,9 @@ module sqlMi 'modules/sql-mi.bicep' = {
     adminPassword: sqlMiAdminPassword
     collation: sqlMiCollation
     vCores: sqlMiVCores
+    storageSizeInGB: sqlMiStorageSizeInGB
+    zoneRedundant: sqlMiZoneRedundant
+    backupStorageRedundancy: sqlMiBackupStorageRedundancy
     entraAdminGroupObjectId: sqlMiEntraAdminGroupObjectId
     tags: tags
   }

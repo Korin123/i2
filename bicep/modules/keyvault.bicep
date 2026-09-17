@@ -8,6 +8,8 @@ param subnetId string
 param privateDnsZoneVaultId string
 param deployerObjectId string = ''
 param allowedTestIps array = []
+@description('Purge protection. Cannot be turned off once on, and a deleted vault then keeps its name for 90 days. Off only for throwaway environments.')
+param enablePurgeProtection bool = true
 param tags object
 
 var kvName = take(getResourceName('keyVault', workload, environment, '001'), 24)
@@ -23,7 +25,7 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enableRbacAuthorization: true
     enableSoftDelete: true
     softDeleteRetentionInDays: 90
-    enablePurgeProtection: true
+    enablePurgeProtection: enablePurgeProtection ? true : null   // null = off (false is rejected)
     enabledForTemplateDeployment: true
     publicNetworkAccess: empty(allowedTestIps) ? 'Disabled' : 'Enabled'
     networkAcls: {

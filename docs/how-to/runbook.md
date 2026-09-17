@@ -31,8 +31,8 @@ Edit `scripts/env.sh`: `SUBSCRIPTION_ID`, `LOCATION`, `I2_ENV=<env>`.
 - `environment = '<env>'`, `location`
 - `networkMode`: `'new'` (nothing exists yet) or `'existing'` (attach to your VNet: set the three `existing*` values)
 - `aksAdminGroupObjectId`: Entra group that administers AKS
-- `allowedTestIps`: the public IP of the PC that will push images (find it with `curl -s ifconfig.me`)
-- `sqlMiCollation`: leave the default until step 7 confirms it, or use the value i2 gives you
+- the public IP of the PC that will push images (find it with `curl -s ifconfig.me`): **not** in the file if the repo is public. Put it in the variable group as `ALLOWED_TEST_IPS` (step 3)
+- `sqlMiCollation`: the value i2 gives you, or leave the default for a throwaway environment you will recreate
 
 Commit and push it.
 **You should see:** the Validate stage passes on the next pipeline run.
@@ -52,7 +52,7 @@ Commit and push it.
 **You should see:** the DeployInfra log lists what would be created (resource group, VNet, Key Vault, ACR, AKS, SQL MI, ...). Nothing is changed.
 
 ### 5. Create the infrastructure
-> Do this only once the collation is confirmed (step 2): it cannot change after the SQL Managed Instance exists.
+> The collation cannot change after the SQL Managed Instance exists. For a real environment, confirm it first. For a throwaway one (like `alpha`: purge protection off, small SQL MI), go ahead and destroy and recreate it later if the collation changes ([destroy-an-environment.md](destroy-an-environment.md)).
 
 **Where:** Pipeline → Run pipeline.
 **Do:** tick **Infra: deploy Bicep**, **untick** Infra: preview only. Run.
@@ -91,10 +91,10 @@ deploy -c base-demo -t package
 deploy -c base-demo -t generate-db-scripts -y
 ./scripts/30-build-images.sh build
 ```
-**You should see:** `Images built locally: ...` and a line `Information Store collation from the i2 config: <value>`. If it warns that the collation differs from `sqlMiCollation`, fix the parameter file **before step 5**.
+**You should see:** `Images built locally: ...` and a line `Information Store collation from the i2 config: <value>`. If it warns that the collation differs from `sqlMiCollation`, fix the parameter file, then destroy and recreate the environment if it already exists.
 
 ### 10. Push the images to ACR
-**Where:** Dev container (your IP must be in `allowedTestIps`, or run this from a machine on the VNet).
+**Where:** Dev container (your IP must be in `ALLOWED_TEST_IPS` in the variable group when the infrastructure was deployed, or run this from a machine on the VNet).
 **Do:**
 ```bash
 ./scripts/30-build-images.sh push
@@ -131,3 +131,4 @@ deploy -c base-demo -t generate-db-scripts -y
 | Redeploy one part | Step 12 with components set, e.g. `liberty` |
 | Reissue certificates | Step 7 with **Secrets: reissue these certs** set, e.g. `solr zookeeper` ([certificates-and-secrets.md](certificates-and-secrets.md)) |
 | Resume a failed database setup | Step 12 with components `database` |
+| Delete everything and start again | [destroy-an-environment.md](destroy-an-environment.md), then from step 5 |

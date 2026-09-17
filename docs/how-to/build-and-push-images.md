@@ -93,7 +93,7 @@ deploy -c base-demo -t generate-db-scripts -y
 ./scripts/30-build-images.sh build
 ```
 **You should see:**
-- a line `Information Store collation from the i2 config: ...`. **Note this value.** It must match `sqlMiCollation` in `bicep/parameters/alpha.bicepparam` **before** the infrastructure is created. A `WARNING` means they differ: fix the parameter file.
+- a line `Information Store collation from the i2 config: ...`. **Note this value.** It must match `sqlMiCollation` in `bicep/parameters/alpha.bicepparam` when the infrastructure is created. A `WARNING` means they differ: fix the parameter file, and if the infrastructure already exists, destroy and recreate it ([destroy-an-environment.md](destroy-an-environment.md)).
 - at the end: `Images built locally: ...`
 
 **Part A is done.** You can repeat it any time; nothing leaves your PC.
@@ -124,7 +124,8 @@ It finds the registry name from the Azure deployment by itself. You type no name
 |---|---|
 | `No infra deployment 'i2-infra-alpha' found` | The infrastructure isn't created yet (runbook step 5), or `I2_ENV` in `scripts/env.sh` is wrong |
 | `missing local image ...` | Redo Part A |
-| `denied` / `unauthorized` / timeout on push | Your public IP isn't allowed. Run `curl -s ifconfig.me`, add it to `allowedTestIps` in `alpha.bicepparam`, rerun the infra pipeline, try again |
+| `unauthorized` / `denied` straight after `az acr login` | You are not in the admin group (`aksAdminGroupObjectId`), which gets push rights. Ask to be added, then `az logout`, `az login` and try again |
+| `denied` / `unauthorized` / timeout on push | Your public IP isn't allowed. Run `curl -s ifconfig.me`, add it to `ALLOWED_TEST_IPS` in the `i2-alpha` variable group, rerun the infra pipeline, try again |
 
 **Part B is done.** Next: runbook step 11 (deploy the workload with the pipeline).
 

@@ -28,6 +28,14 @@ fi
 args=( --location "$LOCATION" --template-file bicep/main.bicep
        --parameters "$BICEP_PARAM" --parameters sqlMiAdminPassword="$MI_ADMIN_PW" )
 
+# Public IPs for the Key Vault / ACR firewalls, kept out of the (possibly public) repo:
+# ALLOWED_TEST_IPS="1.2.3.4 5.6.7.8" (env.sh or the pipeline variable group) overrides the file.
+if [[ -n "${ALLOWED_TEST_IPS:-}" ]]; then
+  ips="$(printf '"%s",' ${ALLOWED_TEST_IPS//,/ })"
+  args+=( --parameters "allowedTestIps=[${ips%,}]" )
+  log "Allowing test IPs through the Key Vault and ACR firewalls: ${ALLOWED_TEST_IPS}"
+fi
+
 # The identity running the deployment needs Key Vault and AKS access for the later steps.
 # In the pipeline (AzureCLI task with addSpnToEnvironment) look up the service principal's
 # object ID; otherwise DEPLOYER_OBJECT_ID or the value in the parameter file is used.

@@ -17,7 +17,7 @@ param i2AddressPrefix = '10.200.212.0/24'
 // param existingVnetResourceGroupName = '<vnet resource group>'
 // param privateDnsResourceGroupName = '<resource group of the privatelink.* DNS zones>'
 
-// Entra group that administers AKS and Grafana (Object ID). Zeros = skipped.
+// Entra group (Object ID): AKS cluster admin, Grafana admin and ACR push. Zeros = skipped.
 param aksAdminGroupObjectId = '00000000-0000-0000-0000-000000000000'
 param aksOutboundType = 'loadBalancer'
 
@@ -27,13 +27,21 @@ param deployerObjectId = ''
 
 // Public IPs allowed through the Key Vault and ACR firewalls, e.g. the machine that pushes
 // images with scripts/30-build-images.sh push. Empty = private endpoints only.
+// In a public repo, leave this empty and set ALLOWED_TEST_IPS in the variable group instead.
 param allowedTestIps = []
+
+// Key Vault purge protection. Keep true for real environments. false only for a throwaway
+// environment you destroy and recreate with the same names (scripts/90-destroy-infra.sh).
+param keyVaultPurgeProtection = true
 
 // SQL Managed Instance. Collation cannot change after creation: use the Collation value from
 // the i2 config's InfoStoreNamesSQLServer.properties (scripts/30-build-images.sh build prints it).
 param sqlMiAdminLogin = 'i2miadmin'
 param sqlMiCollation = 'Latin1_General_100_CI_AS'
-param sqlMiVCores = 8
+param sqlMiVCores = 8                     // alpha/test: 4
+param sqlMiStorageSizeInGB = 512          // alpha/test: 32
+param sqlMiZoneRedundant = true           // alpha/test: false
+param sqlMiBackupStorageRedundancy = 'ZRS' // alpha/test: 'LRS'
 param sqlMiEntraAdminGroupObjectId = ''
 
 param tags = {

@@ -14,5 +14,6 @@ Short, task-focused guides. For the full deployment order and what each step doe
 | Re-run a Solr or database init Job | [rerun-init-jobs.md](rerun-init-jobs.md) |
 | Reissue certificates or change secrets | [certificates-and-secrets.md](certificates-and-secrets.md) |
 | Work out why a sanity check failed | [troubleshoot-sanity-failures.md](troubleshoot-sanity-failures.md) |
+| Delete an environment and start again | [destroy-an-environment.md](destroy-an-environment.md) |
 
 All scripts read a few settings from `scripts/env.sh` (copy `scripts/env.example`: subscription, region, versions). Azure resource names are never typed: Bicep creates them and the scripts read them from the infra deployment. Run scripts from the repo root.
