@@ -29,3 +29,5 @@ config/distribution/
 images/solr-init/generated_config/
 # Information Store scripts generated at build time by scripts/30-build-images.sh
 images/db-init/generated/
+# Assembled i2 configuration copied in at build time by scripts/30-build-images.sh
+images/i2-tools/configuration/

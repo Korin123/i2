@@ -33,7 +33,7 @@ ready_equals() { # kind/name expected
 ready_equals statefulset/zookeeper 3
 ready_equals statefulset/solr 2
 ready_equals statefulset/liberty 2
-for job in i2-solr-zk-init i2-solr-collections i2-db-init; do
+for job in i2-solr-zk-init i2-solr-collections i2-db-init i2-match-rules; do
   [[ "$(kubectl get "job/$job" -n "$ns" -o jsonpath='{.status.succeeded}' 2>/dev/null)" == 1 ]] \
     && pass "job $job succeeded" || fail "job $job succeeded" "kubectl logs job/$job -n $ns"
 done
@@ -66,10 +66,12 @@ if jq -e .cluster >/dev/null 2>&1 <<<"$status"; then
     && fail "solr nodes registered by pod FQDN" "$(jq -c .cluster.live_nodes <<<"$status")" \
     || pass "solr nodes registered by pod FQDN (SOLR_HOST)"
   for c in "${COLLECTIONS[@]}"; do
-    inactive="$(jq -r --arg c "$c" '.cluster.collections[$c].shards // empty | [.[].replicas[] | select(.state != "active")] | length' <<<"$status")"
-    if [[ -z "$inactive" ]]; then fail "collection $c exists"
-    elif [[ "$inactive" != 0 ]]; then fail "collection $c replicas active" "$inactive not active"
-    else pass "collection $c, all replicas active"; fi
+    # ADT pre-prod layout: 1 shard, 2 replicas, one per Solr node (placement plugin)
+    summary="$(jq -r --arg c "$c" '.cluster.collections[$c].shards // empty | to_entries[] | .value.replicas | [length, ([.[] | select(.state == "active")] | length), ([.[].node_name] | unique | length)] | @tsv' <<<"$status")"
+    if [[ -z "$summary" ]]; then fail "collection $c exists"; continue; fi
+    bad="$(awk -F'\t' '$1 != 2 || $2 != 2 || $3 != 2' <<<"$summary")"
+    if [[ -z "$bad" ]]; then pass "collection $c: 2 active replicas per shard on different nodes"
+    else fail "collection $c replicas" "replicas/active/nodes per shard: $(tr '\t\n' '/ ' <<<"$summary")"; fi
   done
 else
   fail "solr CLUSTERSTATUS over TLS with BasicAuth" "$(head -c 300 <<<"$status")"

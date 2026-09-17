@@ -93,3 +93,7 @@ From `utils/server_functions.sh` `run_liberty`, `images/liberty_ubi_base` and th
 - Certificates/keys documented as `*_FILE`; `DB_PASSWORD`, `ZOO_DIGEST_PASSWORD`, `SOLR_HTTP_BASIC_AUTH_PASSWORD` documented as plain env.
 - Optional, unset here: `SSL_ADDITIONAL_TRUST_CERTIFICATES`, `APP_SECRETS`, `CONNECTOR_URL_MAP` (needed only if the config uses `connectors-template.json`), `SERVER_EXTENSIONS_OVERRIDE`, `CAC_OVERRIDE`, `I2_DeploymentDisplayNameSuffix`. ADT's outbound CA bundle also includes an external CA; here outbound trusts the internal CA only.
 - Health: `/api/v1/health/live` with basic auth as the ADT admin.
+
+## ADT 3.2.2 pre-prod deploy order and Solr layout (examples/pre-prod/deploy-pre-prod)
+
+ZooKeeper -> ZooKeeper config for Solr -> Solr -> SQL Server + Information Store static scripts -> configsets -> placement plugin (`AffinityPlacementFactory`) -> collections (`numShards=1&replicationFactor=2`) -> dynamic scripts -> connectors -> Liberty -> `runAdminCommand.sh update_match_rules`, wait for the standby match index, `switch_standby_match_index_to_live`. Here `scripts/40-deploy-workload.sh` follows it, running the whole Information Store step (static and dynamic) after the collections and before Liberty. This layout replaces the ansible-i2a `numShards=4, replicationFactor=1` noted above: with 2 Solr nodes it keeps a full copy of every collection on each node. ADT's docs show `LICENSE="accept"`, but its scripts pass `LIC_AGREEMENT`, checked as `ACCEPT`, so `ACCEPT` is kept.

@@ -45,15 +45,11 @@ parameters:
     type: boolean
     default: true
   - name: components
-    displayName: 'Workload: components (all, or any of: base zookeeper solr-init solr collections liberty connectors ingress)'
+    displayName: 'Workload: components (all, or any of: base zookeeper solr-init solr collections database connectors liberty match-rules ingress)'
     type: string
     default: 'all'
   - name: workloadDryRun
     displayName: 'Workload: preview only (kubectl diff, no changes)'
-    type: boolean
-    default: false
-  - name: bootstrapData
-    displayName: 'Data: run db-init (Information Store)'
     type: boolean
     default: false
   - name: runSanity
@@ -152,27 +148,8 @@ stages:
                   env:
                     DRY_RUN: ${{ parameters.workloadDryRun }}
 
-  - stage: BootstrapData
-    dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
-    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.bootstrapData }}', 'true'))
-    jobs:
-      - deployment: bootstrap
-        environment: i2-alpha
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - checkout: self
-                - task: AzureCLI@2
-                  displayName: 'db_init (resumes from the last completed step)'
-                  inputs:
-                    azureSubscription: $(serviceConnection)
-                    scriptType: bash
-                    scriptLocation: inlineScript
-                    inlineScript: bash scripts/50-bootstrap-data.sh
-
   - stage: Sanity
-    dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload, BootstrapData ]
+    dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.runSanity }}', 'true'))
     jobs:
       - job: sanity

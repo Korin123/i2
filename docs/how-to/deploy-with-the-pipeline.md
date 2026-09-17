@@ -18,9 +18,8 @@ Pipelines → i2 → **Run pipeline**, set the options, then **Run**.
 | Secrets: seed missing secrets + certs | off | first deployment, or after adding a secret |
 | Secrets: reissue these certs | empty | e.g. `solr zookeeper` after a certificate change |
 | Workload: deploy to AKS | on | apply Kubernetes changes |
-| Workload: components | `all` | redeploy only what you fixed, e.g. `liberty` or `solr collections` |
+| Workload: components | `all` | redeploy only what you fixed, e.g. `liberty`, `solr collections`, or `database` to resume a failed db-init |
 | Workload: preview only (kubectl diff) | off | see what would change without applying it |
-| Data: run db-init | off | first deployment, or to resume a failed db-init |
 | Verify: run sanity checks | on | confirm the result |
 
 ## Common runs

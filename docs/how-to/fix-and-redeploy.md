@@ -24,7 +24,8 @@ In the pipeline, set **Workload: components** to the same names.
 | `security.json`, Solr configsets, `images/solr-init` | `solr-init collections` |
 | `k8s/secretproviderclass.yaml`, `k8s/services.yaml`, `k8s/namespace.yaml` | `base`, then restart the pods that use it |
 | `k8s/connectors-deployment.yaml` / `k8s/ingress.yaml` | `connectors` / `ingress` |
-| `images/db-init` or the Information Store scripts | see [rerun-init-jobs.md](rerun-init-jobs.md) |
+| `images/db-init` or the Information Store scripts | `database` (see [rerun-init-jobs.md](rerun-init-jobs.md)) |
+| System match rules in the i2 config, `images/i2-tools` | `match-rules` |
 | `bicep/` | `WHAT_IF=true scripts/10-deploy-infra.sh`, then run it without `WHAT_IF` |
 
 Components always run in the safe order (ZooKeeper, Solr setup, Solr, collections, Liberty), whatever order you type them in.

@@ -1,0 +1,56 @@
+# i2-match-rules - uploads the system match rules and switches the rebuilt standby match index
+# to live, after Liberty is up (ADT 3.2.2 update_match_rules). Image: images/i2-tools (ADT
+# i2a_tools_redhat + our assembled i2 config). Environment as ADT's run_i2_analyze_tool.
+apiVersion: batch/v1
+kind: Job
+metadata: { name: i2-match-rules, namespace: i2analyze }
+spec:
+  backoffLimit: 1
+  template:
+    metadata: { labels: { app: i2-match-rules, azure.workload.identity/use: "true" } }
+    spec:
+      restartPolicy: Never
+      serviceAccountName: i2-bootstrap
+      nodeSelector: { workload: i2-analyze }
+      containers:
+        - name: match-rules
+          image: __ACR__/i2group/i2-tools:__I2_VERSION__
+          args: [ "/opt/match-rules.sh" ]
+          env:
+            - { name: LIC_AGREEMENT, value: "ACCEPT" }
+            - { name: CONFIG_DIR, value: "/opt/configuration" }
+            - { name: GENERATED_DIR, value: "/opt/databaseScripts/generated" }
+            - { name: ZK_HOST, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281" }
+            - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
+            - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
+            - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }
+            - { name: SSL_CA_CERTIFICATE_FILE, value: /etc/i2secrets/CA.cer }
+            - { name: SSL_ADDITIONAL_TRUST_CERTIFICATES_FILE, value: /etc/i2secrets/additional-trust-certificates.cer }
+            - { name: ZOO_DIGEST_USERNAME, value: "solr" }
+            - { name: ZOO_DIGEST_PASSWORD_FILE, value: /etc/i2secrets/ZOO_DIGEST_PASSWORD }
+            - { name: ZOO_DIGEST_READONLY_USERNAME, value: "readonly-user" }
+            - name: ZOO_DIGEST_READONLY_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-tools-credentials, key: ZOO_DIGEST_READONLY_PASSWORD } }
+            - { name: SOLR_ADMIN_DIGEST_USERNAME, value: "solr" }
+            - name: SOLR_ADMIN_DIGEST_PASSWORD
+              valueFrom: { secretKeyRef: { name: i2-tools-credentials, key: SOLR_ADMIN_DIGEST_PASSWORD } }
+            - { name: DB_DIALECT, value: "sqlserver" }
+            - { name: DB_SERVER, value: "__MI_FQDN__" }
+            - { name: DB_PORT, value: "1433" }
+            - { name: DB_NAME, value: "ISTORE" }
+            - { name: DB_USERNAME, value: "dba" }
+            - { name: DB_PASSWORD_FILE, value: /etc/i2secrets/DB_PASSWORD }
+            - { name: DB_SSL_CONNECTION, value: "true" }
+            - { name: DB_OS_TYPE, value: "UNIX" }
+            - { name: DB_INSTALL_DIR, value: "/opt/mssql-tools" }
+            - { name: DB_LOCATION_DIR, value: "/var/opt/mssql/data" }
+            - { name: DB_CREATE_DATABASE, value: "false" }
+            # index status is read from Liberty as the ADT admin (BASIC_AUTH_ENDPOINTS)
+            - { name: FRONT_END_URI_INTERNAL, value: "https://liberty.i2analyze.svc.cluster.local:9443/opal" }
+            - { name: ADT_ADMIN_USERNAME, value: "adt-admin" }
+            - { name: ADT_ADMIN_PASSWORD_FILE, value: /etc/i2secrets/ADT_ADMIN_PASSWORD }
+          volumeMounts:
+            - { name: secrets, mountPath: /etc/i2secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: i2-tools-secrets } }

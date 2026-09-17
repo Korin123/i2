@@ -38,7 +38,7 @@ Same application, different platform layer. Source of the AWS side: i2 `ansible-
 ## Application contract (ADT 3.2.2, which the AWS reference consumes)
 
 - Liberty `/opal` on 9443, HADR mode on, a persistent `/data` volume per server, `ZK_HOST` without the Solr chroot.
-- Solr (ADT `solr_redhat` image) TLS on 8983, `SOLR_HOST` = pod FQDN, BasicAuth via `security.json` (admin `solr`, application `liberty`), 8 collections (main_index, match_index1, match_index2, highlight_index, chart_index, vq_index, recordshare_index, daod_index), numShards=4, replicationFactor=1.
+- Solr (ADT `solr_redhat` image) TLS on 8983, `SOLR_HOST` = pod FQDN, BasicAuth via `security.json` (admin `solr`, application `liberty`), 8 collections (main_index, match_index1, match_index2, highlight_index, chart_index, vq_index, recordshare_index, daod_index), numShards=1, replicationFactor=2 with the affinity placement plugin (ADT pre-prod layout: one replica per Solr node).
 - ZooKeeper secure client 2281, digest ACLs set by clients (users `solr` and `readonly-user`), quorum ports 2888/3888.
 - Secret set: DB passwords (postgres/dba/dbb/etl/i2etl/i2analyze/i2public), liberty admin, Solr admin + application digest passwords, ZK digest + read-only digest passwords, `security.json`. PKI: CA + leaf cert/key for postgres/solr/solr-client/zookeeper/liberty/jwt/external_gateway_user.
 - TLS end to end, offline-first (nodes pull only from the private ACR), no inbound SSH.

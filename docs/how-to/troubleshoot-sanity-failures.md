@@ -16,6 +16,8 @@ Run `scripts/60-sanity.sh`. It runs every check and lists all failures at the en
 | `solr accepts the liberty application user` | Liberty and Solr logs | The Liberty password in Key Vault does not match `security.json`. See [certificates-and-secrets.md](certificates-and-secrets.md) |
 | `liberty reaches <MI>:1433` | `kubectl exec liberty-0 -n i2analyze -- getent hosts <MI FQDN>`, NSGs, hub firewall/UDRs | DNS: the VNet's DNS must resolve `*.database.windows.net`. Network: allow the AKS subnet to reach the MI subnet on 1433 |
 | `ISTORE initialised` | `kubectl logs job/i2-db-init -n i2analyze` | Fix the error, then re-run `scripts/50-bootstrap-data.sh`; it resumes |
+| `job i2-match-rules succeeded` | `kubectl logs job/i2-match-rules -n i2analyze` | Liberty must be live first (fix the health check below). Then `scripts/40-deploy-workload.sh match-rules` |
+| `collection ... replicas` | the replicas/active/nodes numbers in the message | Want `2/2/2`. `1/1/1`: collection created before the 2-replica layout, delete it and redeploy `collections`. Nodes `1`: placement plugin missing, redeploy `collections` |
 | `/opal/api/v1/health/live` | `kubectl logs <liberty pod> -n i2analyze` | Liberty cannot reach Solr, ZooKeeper or the database: fix those checks first. TLS/PKIX errors to the database: the `ssl-additional-trust-certificates` secret is missing or lacks the MI's root CA (`REFRESH_TRUST_CERTS=true scripts/20-seed-secrets-pki.sh`, restart Liberty) |
 
 After fixing, redeploy only what changed ([fix-and-redeploy.md](fix-and-redeploy.md)) and run the sanity checks again.

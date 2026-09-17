@@ -74,9 +74,8 @@ i2-analyze-azure/
 3. Deploy infrastructure: `scripts/10-deploy-infra.sh`.
 4. Seed the secret and PKI set into Key Vault: `scripts/20-seed-secrets-pki.sh`.
 5. Build and push the images with ADT in the dev container (i2-recommended): ADT builds the configured Liberty and `solr_redhat` images, the script generates the Solr configsets into `i2-solr-init` and pushes them to ACR: `scripts/30-build-images.sh`.
-6. Deploy the workload (ZooKeeper, Solr cluster init, Solr, collections, Liberty): `scripts/40-deploy-workload.sh`.
-7. Bootstrap data (Information Store schema; Solr cluster + collections are initialised in step 6): `scripts/50-bootstrap-data.sh`.
-8. Verify: `scripts/60-sanity.sh`.
+6. Deploy the workload in ADT's order (ZooKeeper, Solr cluster init, Solr, collections, Information Store, connectors, Liberty, system match rules): `scripts/40-deploy-workload.sh`. `scripts/50-bootstrap-data.sh` re-runs only the Information Store step.
+7. Verify: `scripts/60-sanity.sh`.
 
 The Azure DevOps pipeline (`pipelines/azure-pipelines.yml`) runs the same scripts as ordered stages. Pushes to `main` only validate; deploys run manually, stage by stage, with previews (what-if / diff) and per-component redeploys.
 

@@ -1,5 +1,5 @@
 # i2-solr-collections - SolrCloud initialisation. After Solr is ready: creates the 8 i2 Analyze collections (ADT create_solr_collections).
-# numShards/replicationFactor as i2's ansible-i2a reference.
+# numShards=1, replicationFactor=2 with the affinity placement plugin, as ADT pre-prod.
 # Image: images/solr-init (ADT solr_client_redhat + generated configsets). Idempotent.
 apiVersion: batch/v1
 kind: Job
@@ -20,8 +20,8 @@ spec:
             - { name: ZK_MEMBERS, value: "zookeeper-0.zookeeper-headless:2281,zookeeper-1.zookeeper-headless:2281,zookeeper-2.zookeeper-headless:2281" }
             - { name: SOLR_CLUSTER_ID, value: "is_cluster" }
             - { name: SOLR_BASE_URL, value: "https://solr-0.solr-headless.i2analyze.svc.cluster.local:8983" }
-            - { name: NUM_SHARDS, value: "4" }
-            - { name: REPLICATION_FACTOR, value: "1" }
+            - { name: NUM_SHARDS, value: "1" }
+            - { name: REPLICATION_FACTOR, value: "2" }
             - { name: SOLR_ZOO_SSL_CONNECTION, value: "true" }
             - { name: SSL_PRIVATE_KEY_FILE, value: /etc/i2secrets/server.key }
             - { name: SSL_CERTIFICATE_FILE, value: /etc/i2secrets/server.cer }

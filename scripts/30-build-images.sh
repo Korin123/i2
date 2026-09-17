@@ -72,7 +72,13 @@ fi
 docker build --build-arg "BASE_IMAGE=sqlserver_client_redhat:${I2_VERSION}" \
   -t "${ACR_LS}/i2group/i2-db-init:${I2_VERSION}" "$root/images/db-init"
 
-log "6) Tag + push to ACR"
+log "6) Build the i2 tools image (i2a_tools_redhat + the assembled config, for the match-rules Job)"
+rm -rf "$root/images/i2-tools/configuration"
+cp -r "$cfg" "$root/images/i2-tools/configuration"
+docker build --build-arg "BASE_IMAGE=i2a_tools_redhat:${I2_VERSION}" \
+  -t "${ACR_LS}/i2group/i2-tools:${I2_VERSION}" "$root/images/i2-tools"
+
+log "7) Tag + push to ACR"
 az acr login --name "$ACR"
 push() { # local-image  acr-repo:tag
   docker tag "$1" "${ACR_LS}/i2group/$2"
@@ -82,4 +88,5 @@ push "liberty_configured_redhat:${CONFIG_NAME}-${I2_VERSION}" "liberty_configure
 push "solr_redhat:${I2_VERSION}" "solr_redhat:${I2_VERSION}"
 docker push "${ACR_LS}/i2group/i2-solr-init:${I2_VERSION}"
 docker push "${ACR_LS}/i2group/i2-db-init:${I2_VERSION}"
+docker push "${ACR_LS}/i2group/i2-tools:${I2_VERSION}"
 log "Images in ACR. AKS pulls only from ${ACR_LS} over its private endpoint."
