@@ -10,7 +10,10 @@ az account set --subscription "$SUBSCRIPTION_ID"
 
 outputs() { az deployment sub show -n "$DEPLOYMENT_NAME" --query "properties.outputs.$1.value" -o tsv 2>/dev/null || true; }
 rg="${RG:-$(outputs resourceGroupName)}"; rg="${rg:-rg-i2-${I2_ENV}-001}"
-kv="${KV:-$(outputs keyVaultName)}"; kv="${kv:-kv-i2-${I2_ENV}-001}"
+kv="${KV:-$(outputs keyVaultName)}"
+# No deployment record (e.g. the deployment failed): find the vault in the group, or among deleted vaults
+[[ -n "$kv" ]] || kv="$(az keyvault list -g "$rg" --query "[0].name" -o tsv 2>/dev/null || true)"
+[[ -n "$kv" ]] || kv="$(az keyvault list-deleted --query "[?starts_with(name, 'kv-i2-${I2_ENV}-')].name | [0]" -o tsv 2>/dev/null || true)"
 
 echo "Subscription: $(az account show --query name -o tsv)"
 echo "This DELETES resource group '$rg' and everything in it (environment '$I2_ENV'),"

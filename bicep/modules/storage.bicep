@@ -7,9 +7,11 @@ param location string
 param subnetId string
 param privateDnsZoneBlobId string
 param readerObjectId string = ''
+@description('Appended to names that must be unique across Azure.')
+param nameSuffix string = ''
 param tags object
 
-var saName = take(replace(getResourceName('storageAccount', '${workload}dist', environment, '001'), '-', ''), 24)
+var saName = take(replace(getResourceName('storageAccount', '${workload}dist', environment, '001${nameSuffix}'), '-', ''), 24)
 var blobDataReaderRoleId = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
 
 resource sa 'Microsoft.Storage/storageAccounts@2023-05-01' = {

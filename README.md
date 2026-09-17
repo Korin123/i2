@@ -77,7 +77,7 @@ In short:
 3. **Dev container:** build the i2 images with ADT, `scripts/30-build-images.sh` pushes them to ACR.
 4. **Pipeline:** deploy i2 to AKS in ADT's order, then run the sanity checks.
 
-Resource names come from the naming functions in `bicep/naming` (CAF abbreviations, for example `kv-i2-dev-001`); the scripts read them from the deployment, so they are never typed by hand. The pipeline never runs automatically; deploys run manually, stage by stage, with previews (what-if / diff) and per-component redeploys.
+Resource names come from the naming functions in `bicep/naming` (CAF abbreviations, for example `kv-i2-dev-001-k3f`; names that must be unique across Azure get a stable 3-character suffix); the scripts read them from the deployment, so they are never typed by hand. The pipeline never runs automatically; deploys run manually, stage by stage, with previews (what-if / diff) and per-component redeploys.
 
 ## Status
 

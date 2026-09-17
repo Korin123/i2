@@ -9,12 +9,14 @@ param privateDnsZoneAcrId string
 param allowedTestIps array = []
 @description('Entra group allowed to push images (people running scripts/30-build-images.sh push). Empty or zeros = skipped.')
 param pushGroupObjectId string = ''
+@description('Appended to names that must be unique across Azure.')
+param nameSuffix string = ''
 param tags object
 
 var acrPushRoleId = '8311e382-0749-4cb8-b61a-304f252e45ec'
 var hasPushGroup = !empty(pushGroupObjectId) && pushGroupObjectId != '00000000-0000-0000-0000-000000000000'
 
-var acrName = take(replace(getResourceName('containerRegistry', workload, environment, '001'), '-', ''), 50)
+var acrName = take(replace(getResourceName('containerRegistry', workload, environment, '001${nameSuffix}'), '-', ''), 50)
 var acrIpRules = [for ip in allowedTestIps: { action: 'Allow', value: ip }]
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {

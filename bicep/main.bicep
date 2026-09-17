@@ -74,6 +74,9 @@ param sqlMiZoneRedundant bool = true
 @allowed([ 'Local', 'Zone', 'Geo', 'GeoZone' ])
 param sqlMiBackupStorageRedundancy string = 'Zone'
 
+@description('Suffix for the names that must be unique across all of Azure (Key Vault, ACR, storage, Grafana). Default: 3 random-looking characters derived from the subscription, workload and environment, so they stay the same on every redeploy.')
+param globalNameSuffix string = take(uniqueString(subscription().id, workload, environment), 3)
+
 @description('Key Vault purge protection. Set false only for a throwaway environment you will destroy and recreate with the same names.')
 param keyVaultPurgeProtection bool = true
 
@@ -151,7 +154,7 @@ var dnsZoneBlobId = newNetwork ? dns!.outputs.blobZoneId : resourceId(subscripti
 module monitoring 'modules/monitoring.bicep' = {
   name: 'i2-monitoring'
   scope: rg
-  params: { workload: workload, environment: environment, location: location, grafanaAdminGroupObjectId: aksAdminGroupObjectId, tags: tags }
+  params: { workload: workload, environment: environment, location: location, grafanaAdminGroupObjectId: aksAdminGroupObjectId, nameSuffix: globalNameSuffix, tags: tags }
 }
 
 module keyVault 'modules/keyvault.bicep' = {
@@ -164,6 +167,7 @@ module keyVault 'modules/keyvault.bicep' = {
     deployerObjectId: deployerObjectId
     allowedTestIps: allowedTestIps
     enablePurgeProtection: keyVaultPurgeProtection
+    nameSuffix: globalNameSuffix
     tags: tags
   }
 }
@@ -177,6 +181,7 @@ module acr 'modules/acr.bicep' = {
     privateDnsZoneAcrId: dnsZoneAcrId
     allowedTestIps: allowedTestIps
     pushGroupObjectId: aksAdminGroupObjectId
+    nameSuffix: globalNameSuffix
     tags: tags
   }
 }
@@ -189,6 +194,7 @@ module storage 'modules/storage.bicep' = {
     subnetId: pepSubnetId
     privateDnsZoneBlobId: dnsZoneBlobId
     readerObjectId: deployerObjectId
+    nameSuffix: globalNameSuffix
     tags: tags
   }
 }

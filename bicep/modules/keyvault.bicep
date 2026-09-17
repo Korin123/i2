@@ -10,9 +10,11 @@ param deployerObjectId string = ''
 param allowedTestIps array = []
 @description('Purge protection. Cannot be turned off once on, and a deleted vault then keeps its name for 90 days. Off only for throwaway environments.')
 param enablePurgeProtection bool = true
+@description('Appended to names that must be unique across Azure.')
+param nameSuffix string = ''
 param tags object
 
-var kvName = take(getResourceName('keyVault', workload, environment, '001'), 24)
+var kvName = take(getResourceName('keyVault', workload, environment, empty(nameSuffix) ? '001' : '001-${nameSuffix}'), 24)
 var secretsOfficerRoleId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
 
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {

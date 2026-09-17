@@ -5,6 +5,8 @@ param workload string
 param environment string
 param location string
 param grafanaAdminGroupObjectId string = '00000000-0000-0000-0000-000000000000'
+@description('Appended to names that must be unique across Azure.')
+param nameSuffix string = ''
 param tags object
 
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -21,7 +23,7 @@ resource amw 'Microsoft.Monitor/accounts@2023-04-03' = {
 }
 
 resource grafana 'Microsoft.Dashboard/grafana@2023-09-01' = {
-  name: 'amg-${workload}-${environment}'
+  name: empty(nameSuffix) ? 'amg-${workload}-${environment}' : 'amg-${workload}-${environment}-${nameSuffix}'
   location: location
   tags: tags
   sku: { name: 'Standard' }
