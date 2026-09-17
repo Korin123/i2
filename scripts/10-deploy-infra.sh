@@ -56,6 +56,22 @@ if [[ "${WHAT_IF,,}" == true ]]; then
   exit 0
 fi
 
+# Failed operations of a deployment, following nested module deployments down to the resource.
+show_failures() {   # $1 = subscription deployment name
+  az deployment sub show -n "$1" --query properties.error -o json 2>/dev/null || true
+  local id rg name
+  while read -r id; do
+    [[ -z "$id" ]] && continue
+    rg="$(cut -d/ -f5 <<<"$id")"; name="${id##*/}"
+    echo "--- module $name (resource group $rg):"
+    az deployment operation group list -g "$rg" -n "$name" \
+      --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.id, error:properties.statusMessage.error}" -o json 2>/dev/null || true
+  done < <(az deployment operation sub list --name "$1" \
+    --query "[?properties.provisioningState=='Failed' && properties.targetResource.resourceType=='Microsoft.Resources/deployments'].properties.targetResource.id" -o tsv 2>/dev/null)
+  az deployment operation sub list --name "$1" \
+    --query "[?properties.provisioningState=='Failed' && properties.targetResource.resourceType!='Microsoft.Resources/deployments'].{resource:properties.targetResource.id, error:properties.statusMessage.error}" -o json 2>/dev/null || true
+}
+
 store_password() {   # $1 = resource group, $2 = Key Vault
   # Written through the Azure Resource Manager API (control plane), not the Key Vault data
   # plane, so it works from an agent with no network path to the private Key Vault (e.g. a
@@ -93,16 +109,17 @@ if $new_pw; then
     [[ "$(az deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv 2>/dev/null)" =~ ^(Failed|Canceled)$ ]] && break
     sleep 30
   done
-  $stored || log "WARNING: MI admin password not stored yet. Run this again once the deployment finishes: it sets a new one and stores it."
+  $stored || log "MI admin password not stored yet (Key Vault not ready or the deployment failed). The next successful run sets a new one and stores it."
 fi
 
 log "Waiting for the deployment to finish (SQL MI first creation takes hours). If this job times out,"
 log "the deployment carries on in Azure: check it in the portal (Subscription > Deployments > $DEPLOYMENT_NAME)."
-az deployment sub wait --name "$DEPLOYMENT_NAME" --custom "properties.provisioningState!='Running' && properties.provisioningState!='Accepted'" --interval 60 --timeout 43200
+az deployment sub wait --name "$DEPLOYMENT_NAME" --custom "properties.provisioningState!='Running' && properties.provisioningState!='Accepted'" --interval 60 --timeout 43200 \
+  || true   # returns an error when the deployment failed; the state is checked below
 state="$(az deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv)"
 if [[ "$state" != Succeeded ]]; then
   log "Deployment $DEPLOYMENT_NAME: $state. Errors:"
-  az deployment operation sub list --name "$DEPLOYMENT_NAME" --query "[?properties.provisioningState=='Failed'].properties.statusMessage" -o json
+  show_failures "$DEPLOYMENT_NAME"
   exit 1
 fi
 
