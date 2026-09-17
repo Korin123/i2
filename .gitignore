@@ -4,6 +4,8 @@
 .env.*
 env.sh
 scripts/env.sh
+# ADT's dev container env-file: committed empty, as in ADT (docker run --env-file needs it)
+!/.devcontainer/adt/devcontainer.env
 !*.env.example
 secrets/
 *.pfx
