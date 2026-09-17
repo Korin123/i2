@@ -29,7 +29,7 @@ parameters:
   - name: environment
     displayName: 'Setup: environment (uses bicep/parameters/<environment>.bicepparam and variable group i2-<environment>)'
     type: string
-    default: 'dev'
+    default: 'alpha'
   - name: serviceConnection
     displayName: 'Setup: Azure Resource Manager service connection'
     type: string
