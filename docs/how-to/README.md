@@ -13,4 +13,4 @@ Short, task-focused guides. For the full deployment order and what each step doe
 | Reissue certificates or change secrets | [certificates-and-secrets.md](certificates-and-secrets.md) |
 | Work out why a sanity check failed | [troubleshoot-sanity-failures.md](troubleshoot-sanity-failures.md) |
 
-All scripts read their settings from `scripts/env.sh` (copy `scripts/env.example`). Run them from the repo root.
+All scripts read a few settings from `scripts/env.sh` (copy `scripts/env.example`: subscription, region, versions). Azure resource names are never typed: Bicep creates them and the scripts read them from the infra deployment. Run scripts from the repo root.

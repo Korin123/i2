@@ -186,6 +186,9 @@ module sqlMi 'modules/sql-mi.bicep' = {
   }
 }
 
+// Read by scripts/00-common.sh (azure_outputs), so resource names never need typing by hand
+output resourceGroupName string = rg.name
+output acrName string = acr.outputs.acrName
 output aksClusterName string = aks.outputs.clusterName
 output acrLoginServer string = acr.outputs.loginServer
 output keyVaultName string = keyVault.outputs.vaultName

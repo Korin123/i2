@@ -11,7 +11,8 @@
 #   DRY_RUN=true scripts/40-deploy-workload.sh ...    show what would change (kubectl diff), apply nothing
 # Components: base zookeeper solr-init solr collections database connectors liberty match-rules ingress
 source "$(dirname "$0")/00-common.sh"
-: "${ACR:?}"; : "${WI_CLIENT_ID:?}"; : "${KV:?}"; : "${TENANT_ID:?}"; : "${MI_FQDN:?}"; : "${I2_VERSION:?}"; : "${ADT_VERSION:?}"
+azure_outputs
+: "${I2_VERSION:?}"; : "${ADT_VERSION:?}"
 ACR_LS="${ACR}.azurecr.io"
 CONFIG_NAME="${CONFIG_NAME:-base-demo}"
 DRY_RUN="${DRY_RUN:-false}"; DRY_RUN="${DRY_RUN,,}"   # pipelines pass True/False

@@ -13,10 +13,15 @@ Images are built locally with ADT (i2's recommendation), then pushed to ACR. The
    ```bash
    deploy -c base-demo -t generate-db-scripts -y
    ```
-3. Build the init images and push everything to ACR:
+3. Build the init images. This needs no Azure, so you can do it before the infrastructure exists:
    ```bash
-   scripts/30-build-images.sh
+   scripts/30-build-images.sh build
    ```
+4. Push everything to ACR, once the infrastructure is deployed (`scripts/10-deploy-infra.sh`):
+   ```bash
+   scripts/30-build-images.sh push
+   ```
+   `scripts/30-build-images.sh` with no argument does both.
 
 This pushes, tagged with `I2_VERSION`:
 

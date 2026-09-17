@@ -7,7 +7,8 @@
 # passwords are read from Key Vault and passed on stdin, never on a command line.
 # Needs az; kubectl, kubelogin and jq are installed if missing.
 source "$(dirname "$0")/00-common.sh"
-: "${AKS:?}"; : "${ACR:?}"; : "${MI_FQDN:?}"; : "${I2_VERSION:?}"
+azure_outputs
+: "${I2_VERSION:?}"
 set +e   # a failing check must not stop the others
 
 ACR_LS="${ACR}.azurecr.io"

@@ -44,3 +44,4 @@ resource pepDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05
 
 output acrId string = acr.id
 output loginServer string = acr.properties.loginServer
+output acrName string = acr.name

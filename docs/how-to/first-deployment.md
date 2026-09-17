@@ -8,7 +8,7 @@ Run from the dev container, or tick the same stages in the pipeline ([deploy-wit
    WHAT_IF=true scripts/10-deploy-infra.sh
    scripts/10-deploy-infra.sh
    ```
-   Copy the outputs `workloadIdentityClientId` and `sqlManagedInstanceFqdn` into `scripts/env.sh` as `WI_CLIENT_ID` and `MI_FQDN`.
+   Bicep names and creates everything. The script prints the names at the end; the other scripts read them from the deployment (`i2-infra-alpha`), so nothing needs copying into `scripts/env.sh`.
 2. **Seed secrets and certificates** into Key Vault:
    ```bash
    scripts/20-seed-secrets-pki.sh

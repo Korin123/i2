@@ -58,7 +58,7 @@ parameters:
     default: true
 
 variables:
-  - group: i2-alpha                 # SUBSCRIPTION_ID, TENANT_ID, RG, KV, ACR, AKS, MI_FQDN, ...
+  - group: i2-alpha                 # SUBSCRIPTION_ID, LOCATION, BICEP_PARAM, I2_VERSION, ADT_VERSION (resource names come from the deployment outputs)
   - name: serviceConnection
     value: 'DFN-ADO-CONN'
   - name: isManual

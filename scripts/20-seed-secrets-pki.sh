@@ -7,6 +7,7 @@
 #   ZK digest users       solr + readonly-user
 # Reissue named leaf certs (e.g. after a SAN change): REISSUE_CERTS="solr zookeeper" $0
 source "$(dirname "$0")/00-common.sh"
+azure_outputs
 
 kv_has() { az keyvault secret show --vault-name "$KV" -n "$1" >/dev/null 2>&1; }
 kv_get() { az keyvault secret show --vault-name "$KV" -n "$1" --query value -o tsv; }
