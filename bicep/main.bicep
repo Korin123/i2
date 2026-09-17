@@ -80,6 +80,9 @@ param globalNameSuffix string = take(uniqueString(subscription().id, workload, e
 @description('Key Vault purge protection. Set false only for a throwaway environment you will destroy and recreate with the same names.')
 param keyVaultPurgeProtection bool = true
 
+@description('true once the SQL MI network (its NSG and route table, which Azure then manages) exists. Set automatically by scripts/10-deploy-infra.sh.')
+param sqlMiNetworkExists bool = false
+
 @description('Optional Entra admin group object ID for MI management-plane admin.')
 param sqlMiEntraAdminGroupObjectId string = ''
 
@@ -102,7 +105,7 @@ var newNetwork = networkMode == 'new'
 module net 'modules/network-nsgs.bicep' = {
   name: 'i2-net-nsgs'
   scope: rg
-  params: { workload: workload, environment: environment, location: location, tags: tags }
+  params: { workload: workload, environment: environment, location: location, sqlMiNetworkExists: sqlMiNetworkExists, tags: tags }
 }
 
 // new: a VNet with the i2 subnets, in the i2 resource group
