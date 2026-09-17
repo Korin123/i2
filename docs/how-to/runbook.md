@@ -48,14 +48,14 @@ Commit and push it.
 
 ### 4. Preview the infrastructure
 **Where:** Pipeline → Run pipeline.
-**Do:** tick **Infra: deploy Bicep**, leave **Infra: preview only** ticked, untick everything else. Run.
+**Do:** set **Infra** to `preview`, leave everything else as it is. Run.
 **You should see:** the DeployInfra log lists what would be created (resource group, VNet, Key Vault, ACR, AKS, SQL MI, ...). Nothing is changed.
 
 ### 5. Create the infrastructure
 > The collation cannot change after the SQL Managed Instance exists. For a real environment, confirm it first. For a throwaway one (like `alpha`: purge protection off, small SQL MI), go ahead and destroy and recreate it later if the collation changes ([destroy-an-environment.md](destroy-an-environment.md)).
 
 **Where:** Pipeline → Run pipeline.
-**Do:** tick **Infra: deploy Bicep**, **untick** Infra: preview only. Run.
+**Do:** set **Infra** to `deploy`, leave everything else as it is. Run.
 **You should see:** DeployInfra succeeds after a few hours (the SQL Managed Instance is slow the first time) and prints the names it created (RG, KV, ACR, AKS, ...). Nothing needs copying: later steps read them.
 
 ### 6. Agent on the VNet
@@ -65,7 +65,7 @@ Commit and push it.
 
 ### 7. Secrets and certificates
 **Where:** Pipeline → Run pipeline.
-**Do:** tick **Secrets: seed missing secrets + certs**, untick everything else. Run.
+**Do:** Infra and Workload `skip`, tick only **Secrets: seed missing secrets + certs**. Run.
 **You should see:** SeedSecrets succeeds with lines like `seeded db-dba-password`, `seeded solr cert/key`, `PKI + secret set seeded into kv-...`.
 
 ---
@@ -107,17 +107,17 @@ deploy -c base-demo -t generate-db-scripts -y
 
 ### 11. Preview the workload
 **Where:** Pipeline → Run pipeline.
-**Do:** tick **Workload: deploy to AKS** and **Workload: preview only**. Components `all`. Run.
+**Do:** set **Workload** to `preview`, components `all`. Run.
 **You should see:** the DeployWorkload log shows what would be created in AKS.
 
 ### 12. Deploy the workload
 **Where:** Pipeline → Run pipeline.
-**Do:** tick **Workload: deploy to AKS**, untick preview, components `all`. Run.
+**Do:** set **Workload** to `deploy`, components `all`. Run.
 **You should see:** in order: ZooKeeper, Solr setup, Solr, collections, Information Store, Liberty, system match rules, then `Done.`
 
 ### 13. Check it works
 **Where:** Pipeline → Run pipeline.
-**Do:** tick only **Verify: run sanity checks**. Run.
+**Do:** Infra and Workload `skip`, tick only **Verify: run sanity checks**. Run.
 **You should see:** every line `PASS` and `All checks passed.` If not: [troubleshoot-sanity-failures.md](troubleshoot-sanity-failures.md).
 
 ---

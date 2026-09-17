@@ -14,20 +14,18 @@ Pipelines → i2 → **Run pipeline**, set the options, then **Run**.
 
 | Option | Default | Use it to |
 |---|---|---|
-| Infra: deploy Bicep | off | apply infrastructure changes |
-| Infra: preview only (what-if) | **on** | see what would change; untick to actually deploy |
+| Infra (Bicep, incl. SQL MI) | `skip` | `preview`: show what would change (what-if), change nothing. `deploy`: create or update the infrastructure |
 | Secrets: seed missing secrets + certs | off | first deployment, or after adding a secret |
 | Secrets: reissue these certs | empty | e.g. `solr zookeeper` after a certificate change |
-| Workload: deploy to AKS | off | apply Kubernetes changes |
+| Workload (Kubernetes on AKS) | `skip` | `preview`: show what would change (kubectl diff). `deploy`: apply it |
 | Workload: components | `all` | redeploy only what you fixed, e.g. `liberty`, `solr collections`, or `database` to resume a failed db-init |
-| Workload: preview only (kubectl diff) | off | see what would change without applying it |
 | Verify: run sanity checks | off | confirm the result |
 
 ## Common runs
 
-- **Preview everything:** Infra on with preview on, Workload on with preview on, Sanity off.
-- **Redeploy Liberty after a new image:** Workload on, components `liberty`.
-- **Just check health:** untick everything except Sanity.
+- **Preview everything:** Infra `preview`, Workload `preview`, Sanity off.
+- **Redeploy Liberty after a new image:** Workload `deploy`, components `liberty`.
+- **Just check health:** Infra and Workload `skip`, tick only Sanity.
 
 The deploy stages first check that the images they need are in ACR. If one is missing, build and push it ([build-and-push-images.md](build-and-push-images.md)) and run again.
 

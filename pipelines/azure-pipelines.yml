@@ -43,14 +43,11 @@ parameters:
     type: boolean
     default: true
   # --- Run options ---
-  - name: deployInfra
-    displayName: 'Infra: deploy Bicep (incl. SQL MI)'
-    type: boolean
-    default: false
-  - name: infraWhatIf
-    displayName: 'Infra: preview only (what-if, no changes)'
-    type: boolean
-    default: true
+  - name: infra
+    displayName: 'Infra (Bicep, incl. SQL MI)'
+    type: string
+    default: 'skip'
+    values: [ 'skip', 'preview', 'deploy' ]
   - name: seedSecrets
     displayName: 'Secrets: seed missing secrets + certs into Key Vault'
     type: boolean
@@ -59,18 +56,15 @@ parameters:
     displayName: 'Secrets: reissue these certs (space separated, e.g. "solr zookeeper")'
     type: string
     default: ' '
-  - name: deployWorkload
-    displayName: 'Workload: deploy to AKS'
-    type: boolean
-    default: false
+  - name: workload
+    displayName: 'Workload (Kubernetes on AKS)'
+    type: string
+    default: 'skip'
+    values: [ 'skip', 'preview', 'deploy' ]
   - name: components
     displayName: 'Workload: components (all, or any of: base zookeeper solr-init solr collections database connectors liberty match-rules ingress)'
     type: string
     default: 'all'
-  - name: workloadDryRun
-    displayName: 'Workload: preview only (kubectl diff, no changes)'
-    type: boolean
-    default: false
   - name: runSanity
     displayName: 'Verify: run sanity checks'
     type: boolean
@@ -116,7 +110,7 @@ stages:
   # ones (each stage depends on every earlier stage).
   - stage: DeployInfra
     dependsOn: Validate
-    condition: and(succeeded(), eq(variables.isManual, true), eq('${{ parameters.deployInfra }}', 'true'))
+    condition: and(succeeded(), eq(variables.isManual, true), ne('${{ parameters.infra }}', 'skip'))
     pool:
       ${{ if parameters.infraOnMicrosoftHosted }}:
         vmImage: ubuntu-latest
@@ -135,7 +129,7 @@ stages:
               steps:
                 - checkout: self
                 - task: AzureCLI@2
-                  displayName: ${{ iif(parameters.infraWhatIf, 'What-if infra (no changes)', 'Deploy infra (incl. SQL MI)') }}
+                  displayName: ${{ iif(eq(parameters.infra, 'deploy'), 'Deploy infra (incl. SQL MI)', 'Preview infra (what-if, no changes)') }}
                   inputs:
                     azureSubscription: ${{ parameters.serviceConnection }}
                     scriptType: bash
@@ -143,7 +137,7 @@ stages:
                     addSpnToEnvironment: true
                     inlineScript: bash scripts/10-deploy-infra.sh
                   env:
-                    WHAT_IF: ${{ parameters.infraWhatIf }}
+                    WHAT_IF: ${{ ne(parameters.infra, 'deploy') }}
 
   - stage: SeedSecrets
     dependsOn: [ Validate, DeployInfra ]
@@ -165,7 +159,7 @@ stages:
 
   - stage: DeployWorkload
     dependsOn: [ Validate, DeployInfra, SeedSecrets ]
-    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.deployWorkload }}', 'true'))
+    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), ne('${{ parameters.workload }}', 'skip'))
     pool:
       name: ${{ parameters.vnetAgentPool }}
     jobs:
@@ -177,14 +171,14 @@ stages:
               steps:
                 - checkout: self
                 - task: AzureCLI@2
-                  displayName: '${{ iif(parameters.workloadDryRun, ''Diff'', ''Apply'') }} manifests: ${{ parameters.components }}'
+                  displayName: '${{ iif(eq(parameters.workload, ''deploy''), ''Apply'', ''Preview (kubectl diff)'') }} manifests: ${{ parameters.components }}'
                   inputs:
                     azureSubscription: ${{ parameters.serviceConnection }}
                     scriptType: bash
                     scriptLocation: inlineScript
                     inlineScript: bash scripts/40-deploy-workload.sh ${{ replace(parameters.components, ',', ' ') }}
                   env:
-                    DRY_RUN: ${{ parameters.workloadDryRun }}
+                    DRY_RUN: ${{ ne(parameters.workload, 'deploy') }}
 
   - stage: Sanity
     dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
