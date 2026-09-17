@@ -11,10 +11,12 @@ Every command below goes in **one place**: the terminal inside the dev container
 
 ## Before you start: open the right terminal
 
+New PC? Do [set-up-the-dev-container.md](set-up-the-dev-container.md) first.
+
 1. Start **Docker Desktop** and wait until it says it is running.
-2. Open your WSL terminal (Start menu → **Ubuntu**, or whichever Linux you installed) and run:
+2. Open your WSL terminal (Start menu → **Ubuntu**) and go to wherever you cloned the repo:
    ```bash
-   cd ~/i2 && code .
+   cd ~/dev/projects/i2 && code .
    ```
 3. VS Code opens. If it asks, click **Reopen in Container** (or **F1 → Dev Containers: Reopen in Container**).
 4. Wait until the bottom-left corner says **Dev Container: i2 - ADT + Azure**.

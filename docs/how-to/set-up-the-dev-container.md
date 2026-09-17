@@ -1,36 +1,99 @@
 # Set up the dev container
 
-All work on this repo happens in one dev container, **i2 - ADT + Azure (open from WSL)**: editing, git, `az`, Bicep, kubectl, and building the i2 images with ADT. It is ADT's own dev container plus the Azure tools (az, Bicep, kubectl, kubelogin, jq, Docker CLI).
+All work on this repo happens in one dev container, **i2 - ADT + Azure (open from WSL)**: editing, git, `az`, Bicep, kubectl, and building the i2 images with ADT. You install nothing else: the tools are inside the container.
 
-**You need:** Docker Desktop (at least 5 GB memory, WSL 2 backend), WSL 2 (for example Ubuntu), and VS Code with the **Dev Containers** and **WSL** extensions. For image builds, also the i2 Analyze minimal toolkit.
+**Why WSL?** ADT starts containers that mount your workspace by its host path, so the workspace must sit at the same path inside and outside the container. A Windows path such as `D:\Projects\i2` is not a valid Linux path, so the repo must live **inside WSL**. WSL is only where the folder lives; you do not work in WSL itself.
 
-**Why WSL?** ADT starts containers that mount your workspace by its host path, so the workspace must sit at the same path inside and outside the container. A Windows path such as `D:\Projects\i2` is not a valid Linux path, so the clone must live inside WSL.
+The examples use the folder `~/dev/projects/i2`. Any folder inside WSL works.
 
-## Steps
+---
 
-1. **Clone inside WSL**, not on a Windows drive. Open your WSL terminal (Start menu → **Ubuntu**, or whichever Linux you installed):
+## New PC (once)
+
+### 1. Install on Windows
+| Install | Check |
+|---|---|
+| **WSL with Ubuntu**: PowerShell as administrator → `wsl --install`, then restart | PowerShell → `wsl -l -v` lists Ubuntu, `VERSION 2` |
+| **Docker Desktop** | Settings → General: **Use the WSL 2 based engine** on. Settings → Resources → **WSL integration**: your Ubuntu on. Settings → Resources: memory at least 5 GB |
+| **VS Code** with the **Dev Containers** and **WSL** extensions | Extensions view shows both installed |
+
+### 2. Open Ubuntu
+**Do:** Start menu → **Ubuntu**. The first time, it asks you to create a Linux username and password.
+**You should see:** a prompt like `<you>@<pc>:~$`.
+
+### 3. Download the repo into WSL
+**Do:** in the Ubuntu window:
+```bash
+mkdir -p ~/dev/projects && cd ~/dev/projects && git clone <repository URL> i2
+```
+for example `git clone https://github.com/Korin123/i2.git i2`. Ubuntu already includes git. A public repository needs no sign-in to download.
+**You should see:** `Cloning into 'i2'...` and `done`.
+
+### 4. Open it in VS Code
+**Do:** in the same Ubuntu window:
+```bash
+cd ~/dev/projects/i2 && code .
+```
+The first time, VS Code installs its WSL support, which takes a minute.
+**You should see:** VS Code with **WSL: Ubuntu** in the bottom-left corner.
+
+### 5. Open the dev container
+**Do:** click **Reopen in Container** (or **F1 → Dev Containers: Reopen in Container**). The first build takes a few minutes.
+**You should see:** **Dev Container: i2 - ADT + Azure** in the bottom-left corner.
+
+### 6. Sign in to Azure and create your settings
+**Do:** Terminal → New Terminal (this terminal is inside the container):
+```bash
+az login
+cp scripts/env.example scripts/env.sh
+```
+Edit `scripts/env.sh`: `SUBSCRIPTION_ID`, `LOCATION`, `I2_ENV` (for example `alpha`). This file is git-ignored, so every PC needs its own.
+**You should see:** `az account show --query name -o tsv` prints your subscription.
+
+### 7. (When you have the toolkit) install ADT
+Follow [build-and-push-images.md](build-and-push-images.md), Part A.
+
+---
+
+## Every day
+
+1. Start Docker Desktop.
+2. Ubuntu window:
    ```bash
-   cd ~ && git clone <this repository URL> i2
+   cd ~/dev/projects/i2 && code .
    ```
-2. **Open it in VS Code**, from the same WSL terminal:
+3. VS Code: **Reopen in Container**.
+4. VS Code terminal:
    ```bash
-   cd ~/i2 && code .
+   git pull
    ```
-   Not sure which Linux you have? In PowerShell, `wsl -l -v` lists them; the one marked `*` is the default.
-3. **F1 → Dev Containers: Reopen in Container**. The first build takes a few minutes.
-4. Sign in and create your settings file:
-   ```bash
-   az login
-   cp scripts/env.example scripts/env.sh
-   ```
-5. When you have the toolkit, put it at `adt/pre-reqs/i2analyzeMinimal.tar.gz`, then install ADT:
-   ```bash
-   scripts/05-install-adt.sh
-   ```
-   If you installed ADT before adding the toolkit, add it now and run `manage-environment -t update`.
 
-**Every day:** WSL terminal → `cd ~/i2 && code .` → reopen in the container → `git pull`.
+---
 
-`az login` is kept in a Docker volume, so it survives rebuilds. `adt/` and `scripts/env.sh` are git-ignored, so the licensed toolkit and your settings are never committed.
+## Pushing your changes to GitHub
 
-**VS Code went blank?** The folder was opened from a Windows path. Close the window and open the WSL clone (step 2).
+Downloading needs no sign-in; `git push` does. The simplest way is to let WSL use the Windows sign-in window (needs **Git for Windows** installed on the PC). Once, in the Ubuntu window:
+```bash
+git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe"
+git config --global user.name "<your name>"
+git config --global user.email "<your email>"
+```
+The first `git push` then opens a browser window to sign in to GitHub. The dev container reuses this sign-in.
+
+---
+
+## Good to know
+
+- `az login` is kept in a Docker volume, so it survives container rebuilds.
+- `adt/` (the licensed toolkit) and `scripts/env.sh` are git-ignored and never committed.
+- Moved the folder? VS Code builds the container again for the new location the first time. That is normal.
+
+## Problems
+
+| Problem | Fix |
+|---|---|
+| VS Code window goes **blank** | The folder was opened from a Windows path (for example `D:\...`). Close it and open the WSL copy (step 4) |
+| `code: command not found` in Ubuntu | Install VS Code on Windows (tick **Add to PATH**), then close and reopen Ubuntu |
+| **Reopen in Container** fails with a Docker error | Docker Desktop not running, or WSL integration for Ubuntu is off (step 1) |
+| Can't find the folder | In Ubuntu: `ls ~/dev/projects`. In Windows File Explorer: **Linux → Ubuntu → home → \<you\> → dev → projects → i2** |
+| Which Linux do I have? | PowerShell: `wsl -l -v`; the one marked `*` is the default |
