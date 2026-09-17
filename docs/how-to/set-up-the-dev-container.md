@@ -88,12 +88,39 @@ The first `git push` then opens a browser window to sign in to GitHub. The dev c
 - `adt/` (the licensed toolkit) and `scripts/env.sh` are git-ignored and never committed.
 - Moved the folder? VS Code builds the container again for the new location the first time. That is normal.
 
+## Certificate errors (corporate network)
+
+**Symptom:** `az` is missing after the container builds, and running `bash .devcontainer/azure-tools.sh` shows `self-signed certificate in certificate chain` or `CERTIFICATE_VERIFY_FAILED`.
+
+**Why:** your network inspects secure traffic and re-signs it with your organisation's own root certificate. Windows trusts it; the container does not yet.
+
+**Fix (once per PC):**
+
+1. **Export the certificate from Windows.** PowerShell (not as administrator):
+   ```powershell
+   Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root | Select-Object Subject, Thumbprint
+   ```
+   Find your organisation's root, often named after the company or the proxy product (for example Zscaler, Netskope, Palo Alto). Not sure which? In the dev container, `curl -sv https://pypi.org 2>&1 | grep issuer` shows the name. Then export it (replace the thumbprint):
+   ```powershell
+   $c = Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root | Where-Object Thumbprint -eq '<thumbprint>' | Select-Object -First 1
+   "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($c.RawData, 'InsertLineBreaks') + "`n-----END CERTIFICATE-----" | Out-File -Encoding ascii $HOME\Downloads\corp-root.crt
+   ```
+   **You should see:** `corp-root.crt` in your Downloads folder.
+2. **Put it in the repo.** Drag `corp-root.crt` from Downloads onto the `.devcontainer/certs` folder in the VS Code Explorer. It is git-ignored, never committed.
+3. **Install the tools again.** VS Code terminal:
+   ```bash
+   bash .devcontainer/azure-tools.sh
+   ```
+   **You should see:** `Trusted 1 extra root CA(s)` and, at the end, `Azure tools installed`.
+4. Open a **new** terminal. `az version` now works. Future rebuilds of the container pick up the certificate automatically.
+
 ## Problems
 
 | Problem | Fix |
 |---|---|
 | VS Code window goes **blank** | The folder was opened from a Windows path (for example `D:\...`). Close it and open the WSL copy (step 4) |
 | `code: command not found` in Ubuntu | Install VS Code on Windows (tick **Add to PATH**), then close and reopen Ubuntu |
+| `az: command not found` in the container | Setup may still be running (wait, then new terminal). Otherwise run `bash .devcontainer/azure-tools.sh`; certificate error → [Certificate errors](#certificate-errors-corporate-network) |
 | **Reopen in Container** fails with a Docker error | Docker Desktop not running, or WSL integration for Ubuntu is off (step 1) |
 | Can't find the folder | In Ubuntu: `ls ~/dev/projects`. In Windows File Explorer: **Linux → Ubuntu → home → \<you\> → dev → projects → i2** |
 | Which Linux do I have? | PowerShell: `wsl -l -v`; the one marked `*` is the default |

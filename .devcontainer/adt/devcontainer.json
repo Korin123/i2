@@ -34,6 +34,8 @@
   "remoteEnv": {
     "DEVCONTAINER": "true",
     "DOCKER_BUILDKIT": "1",
+    // az (Python) uses the system CA bundle, which includes any root CA from .devcontainer/certs
+    "REQUESTS_CA_BUNDLE": "/etc/pki/tls/certs/ca-bundle.crt",
     "HOST_HOME": "${localEnv:HOME}",
     "WORKSPACE": "${containerWorkspaceFolder}/adt",
     "ANALYZE_CONTAINERS_ROOT_DIR": "${containerWorkspaceFolder}/adt",

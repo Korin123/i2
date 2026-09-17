@@ -8,6 +8,9 @@ scripts/env.sh.*
 # ADT's dev container env-file: committed empty, as in ADT (docker run --env-file needs it)
 !/.devcontainer/adt/devcontainer.env
 !*.env.example
+# Organisation root CAs for the dev container (see .devcontainer/certs/README.md)
+/.devcontainer/certs/*
+!/.devcontainer/certs/README.md
 secrets/
 *.pfx
 *.pem
