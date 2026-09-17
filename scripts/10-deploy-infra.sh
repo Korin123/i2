@@ -2,8 +2,8 @@
 # Deploy the Azure platform (Bicep) including the SQL Managed Instance. Bicep names and
 # creates every resource; the deployment is named DEPLOYMENT_NAME so the other scripts can
 # read the resource names back from its outputs (azure_outputs in 00-common.sh).
-# The MI admin password is generated on the first run and stored in Key Vault after the
-# vault exists; later runs reuse it, so re-running to apply a fix does not rotate it.
+# The MI admin password is generated on the first run and stored in Key Vault as soon as the
+# vault exists (before the MI finishes); later runs reuse it, so re-running does not rotate it.
 # MI first creation takes hours.
 #   WHAT_IF=true scripts/10-deploy-infra.sh    preview the changes (az deployment what-if), deploy nothing
 source "$(dirname "$0")/00-common.sh"
@@ -56,23 +56,56 @@ if [[ "${WHAT_IF,,}" == true ]]; then
   exit 0
 fi
 
-log "Deploying bicep/main.bicep as '$DEPLOYMENT_NAME' (includes SQL MI - allow hours on first run)"
-az deployment sub create --name "$DEPLOYMENT_NAME" "${args[@]}" >/dev/null
-
-azure_outputs
-if $new_pw; then
+store_password() {   # $1 = resource group, $2 = Key Vault
   # Written through the Azure Resource Manager API (control plane), not the Key Vault data
   # plane, so it works from an agent with no network path to the private Key Vault (e.g. a
-  # Microsoft-hosted agent on the first deployment). A new password is only generated when the
-  # stored one cannot be read, and it is applied to the MI by this same deployment, so the MI
-  # and Key Vault always agree.
-  log "Storing MI admin password in Key Vault $KV (sqlmi-admin-password, SA_PASSWORD)"
-  body="$(printf '{"properties":{"value":"%s"}}' "$MI_ADMIN_PW")"
+  # Microsoft-hosted agent on the first deployment).
+  log "Storing MI admin password in Key Vault $2 (sqlmi-admin-password, SA_PASSWORD)"
+  local body; body="$(printf '{"properties":{"value":"%s"}}' "$MI_ADMIN_PW")"
   for secret in sqlmi-admin-password SA_PASSWORD; do
     az rest --method put --output none \
-      --url "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RG}/providers/Microsoft.KeyVault/vaults/${KV}/secrets/${secret}?api-version=2023-07-01" \
+      --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/$1/providers/Microsoft.KeyVault/vaults/$2/secrets/${secret}?api-version=2023-07-01" \
       --body "$body"
   done
+}
+
+log "Deploying bicep/main.bicep as '$DEPLOYMENT_NAME' (includes SQL MI - allow hours on first run)"
+az deployment sub create --name "$DEPLOYMENT_NAME" "${args[@]}" --no-wait
+
+if $new_pw; then
+  # Store the password as soon as the Key Vault exists, not when the whole deployment ends:
+  # the SQL MI takes hours, and a pipeline job timing out must not lose the password (the
+  # deployment itself carries on in Azure).
+  log "Waiting for the Key Vault module to finish, to store the MI admin password early"
+  stored=false
+  for _ in $(seq 1 120); do   # up to 60 min
+    kv_dep="$(az deployment operation sub list --name "$DEPLOYMENT_NAME" \
+      --query "[?properties.targetResource.resourceName=='i2-keyvault'].properties.targetResource.id | [0]" -o tsv 2>/dev/null || true)"
+    if [[ -n "$kv_dep" ]]; then
+      kv_rg="$(cut -d/ -f5 <<<"$kv_dep")"
+      state="$(az deployment group show -g "$kv_rg" -n i2-keyvault --query properties.provisioningState -o tsv 2>/dev/null || true)"
+      if [[ "$state" == Succeeded ]]; then
+        store_password "$kv_rg" "$(az deployment group show -g "$kv_rg" -n i2-keyvault --query properties.outputs.vaultName.value -o tsv)"
+        stored=true; break
+      fi
+      [[ "$state" == Failed ]] && break
+    fi
+    [[ "$(az deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv 2>/dev/null)" =~ ^(Failed|Canceled)$ ]] && break
+    sleep 30
+  done
+  $stored || log "WARNING: MI admin password not stored yet. Run this again once the deployment finishes: it sets a new one and stores it."
 fi
+
+log "Waiting for the deployment to finish (SQL MI first creation takes hours). If this job times out,"
+log "the deployment carries on in Azure: check it in the portal (Subscription > Deployments > $DEPLOYMENT_NAME)."
+az deployment sub wait --name "$DEPLOYMENT_NAME" --custom "properties.provisioningState!='Running' && properties.provisioningState!='Accepted'" --interval 60 --timeout 43200
+state="$(az deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv)"
+if [[ "$state" != Succeeded ]]; then
+  log "Deployment $DEPLOYMENT_NAME: $state. Errors:"
+  az deployment operation sub list --name "$DEPLOYMENT_NAME" --query "[?properties.provisioningState=='Failed'].properties.statusMessage" -o json
+  exit 1
+fi
+
+azure_outputs
 log "Infra deployed. Names the other scripts will use (from the deployment outputs):"
 printf '    %-13s %s\n' RG "$RG" KV "$KV" ACR "$ACR" AKS "$AKS" WI_CLIENT_ID "$WI_CLIENT_ID" MI_FQDN "$MI_FQDN"

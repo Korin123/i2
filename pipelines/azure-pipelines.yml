@@ -125,6 +125,10 @@ stages:
     jobs:
       - deployment: infra
         environment: i2-${{ parameters.environment }}   # approvals/checks configured on the environment
+        # SQL MI first creation takes hours. Microsoft-hosted jobs stop at 360 min (60 on the free
+        # tier); if that happens the deployment carries on in Azure and scripts/10 has already
+        # stored the MI password, so just run Infra again once it has finished.
+        timeoutInMinutes: 360
         strategy:
           runOnce:
             deploy:
