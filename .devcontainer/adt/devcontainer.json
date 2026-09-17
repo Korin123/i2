@@ -41,7 +41,6 @@
         "ms-azure-devops.azure-pipelines",
         "redhat.vscode-xml",
         "redhat.vscode-yaml",
-        "vscjava.vscode-java-pack",
         "timonwong.shellcheck"
       ],
       "settings": {
