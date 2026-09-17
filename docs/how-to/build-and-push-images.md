@@ -12,9 +12,9 @@ Every command below goes in **one place**: the terminal inside the dev container
 ## Before you start: open the right terminal
 
 1. Start **Docker Desktop** and wait until it says it is running.
-2. In a Windows terminal:
+2. Open your WSL terminal (Start menu → **Ubuntu**, or whichever Linux you installed) and run:
    ```bash
-   code --remote wsl+Ubuntu-24.04 /home/korin/i2
+   cd ~/i2 && code .
    ```
 3. VS Code opens. If it asks, click **Reopen in Container** (or **F1 → Dev Containers: Reopen in Container**).
 4. Wait until the bottom-left corner says **Dev Container: i2 - ADT + Azure**.
@@ -23,7 +23,7 @@ Every command below goes in **one place**: the terminal inside the dev container
    git pull
    ```
 
-**You should see:** a prompt like `vscode ➜ /home/korin/i2 (main) $`. Every command in this guide goes here.
+**You should see:** a prompt like `vscode ➜ /home/<you>/i2 (main) $`. Every command in this guide goes here.
 
 ---
 

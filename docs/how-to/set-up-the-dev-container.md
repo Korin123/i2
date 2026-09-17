@@ -8,14 +8,15 @@ All work on this repo happens in one dev container, **i2 - ADT + Azure (open fro
 
 ## Steps
 
-1. **Clone inside WSL**, not on a Windows drive. In a WSL terminal:
+1. **Clone inside WSL**, not on a Windows drive. Open your WSL terminal (Start menu → **Ubuntu**, or whichever Linux you installed):
    ```bash
    cd ~ && git clone <this repository URL> i2
    ```
-2. **Open it in VS Code.** From a Windows terminal (or `code .` from the WSL terminal inside `~/i2`):
+2. **Open it in VS Code**, from the same WSL terminal:
    ```bash
-   code --remote wsl+Ubuntu-24.04 /home/<you>/i2
+   cd ~/i2 && code .
    ```
+   Not sure which Linux you have? In PowerShell, `wsl -l -v` lists them; the one marked `*` is the default.
 3. **F1 → Dev Containers: Reopen in Container**. The first build takes a few minutes.
 4. Sign in and create your settings file:
    ```bash
@@ -28,7 +29,7 @@ All work on this repo happens in one dev container, **i2 - ADT + Azure (open fro
    ```
    If you installed ADT before adding the toolkit, add it now and run `manage-environment -t update`.
 
-**Every day:** open `~/i2` from WSL, reopen in the container, `git pull`.
+**Every day:** WSL terminal → `cd ~/i2 && code .` → reopen in the container → `git pull`.
 
 `az login` is kept in a Docker volume, so it survives rebuilds. `adt/` and `scripts/env.sh` are git-ignored, so the licensed toolkit and your settings are never committed.
 
