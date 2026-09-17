@@ -2,7 +2,7 @@
 
 The i2 Analyze shared configuration (schema, security schema, fragments) lives here.
 For the first pass use i2's `base-demo` example configuration to prove the pipeline
-end to end, then replace it with the DFN schema.
+end to end, then replace it with your own schema.
 
 The i2 distribution and images are obtained separately under the i2 licence and are
 NOT committed (see `.gitignore`). On the build box:

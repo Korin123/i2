@@ -1,6 +1,5 @@
 # i2 Analyze containerised solution - familiarisation brief
 
-Author: Korin Taunton, Lead Architect
 Source: i2 Ansible+CDK reference implementation (ansible-i2a 0.9) and i2 analyze-deployment-tooling (GitHub v3.3.0). This brief is the authoritative reference for building the Azure equivalent.
 
 ## What the two repos are

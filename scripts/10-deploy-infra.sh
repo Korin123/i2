@@ -19,6 +19,7 @@ if [[ -n "$kv" ]] && MI_ADMIN_PW="$(az keyvault secret show --vault-name "$kv" -
   log "Reusing the MI admin password from Key Vault $kv"
   new_pw=false
 else
+  [[ -n "$kv" ]] && log "Key Vault $kv not readable from here (private network): generating a new MI admin password, applied to the MI and stored in Key Vault by this run"
   MI_ADMIN_PW="$(openssl rand -base64 30 | tr -dc 'A-Za-z0-9'; echo)"
   MI_ADMIN_PW="Aa1@${MI_ADMIN_PW:0:28}"   # SQL complexity
   new_pw=true
@@ -26,6 +27,15 @@ fi
 
 args=( --location "$LOCATION" --template-file bicep/main.bicep
        --parameters "$BICEP_PARAM" --parameters sqlMiAdminPassword="$MI_ADMIN_PW" )
+
+# The identity running the deployment needs Key Vault and AKS access for the later steps.
+# In the pipeline (AzureCLI task with addSpnToEnvironment) look up the service principal's
+# object ID; otherwise DEPLOYER_OBJECT_ID or the value in the parameter file is used.
+if [[ -z "${DEPLOYER_OBJECT_ID:-}" && -n "${servicePrincipalId:-}" ]]; then
+  DEPLOYER_OBJECT_ID="$(az ad sp show --id "$servicePrincipalId" --query id -o tsv 2>/dev/null || true)"
+  [[ -n "$DEPLOYER_OBJECT_ID" ]] || log "WARNING: could not read the service principal's object ID; set deployerObjectId in $BICEP_PARAM"
+fi
+[[ -n "${DEPLOYER_OBJECT_ID:-}" ]] && args+=( --parameters deployerObjectId="$DEPLOYER_OBJECT_ID" )
 
 WHAT_IF="${WHAT_IF:-false}"
 if [[ "${WHAT_IF,,}" == true ]]; then
@@ -39,9 +49,18 @@ az deployment sub create --name "$DEPLOYMENT_NAME" "${args[@]}" >/dev/null
 
 azure_outputs
 if $new_pw; then
+  # Written through the Azure Resource Manager API (control plane), not the Key Vault data
+  # plane, so it works from an agent with no network path to the private Key Vault (e.g. a
+  # Microsoft-hosted agent on the first deployment). A new password is only generated when the
+  # stored one cannot be read, and it is applied to the MI by this same deployment, so the MI
+  # and Key Vault always agree.
   log "Storing MI admin password in Key Vault $KV (sqlmi-admin-password, SA_PASSWORD)"
-  az keyvault secret set --vault-name "$KV" -n sqlmi-admin-password --value "$MI_ADMIN_PW" 1>/dev/null
-  az keyvault secret set --vault-name "$KV" -n SA_PASSWORD          --value "$MI_ADMIN_PW" 1>/dev/null
+  body="$(printf '{"properties":{"value":"%s"}}' "$MI_ADMIN_PW")"
+  for secret in sqlmi-admin-password SA_PASSWORD; do
+    az rest --method put --output none \
+      --url "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RG}/providers/Microsoft.KeyVault/vaults/${KV}/secrets/${secret}?api-version=2023-07-01" \
+      --body "$body"
+  done
 fi
 log "Infra deployed. Names the other scripts will use (from the deployment outputs):"
 printf '    %-13s %s\n' RG "$RG" KV "$KV" ACR "$ACR" AKS "$AKS" WI_CLIENT_ID "$WI_CLIENT_ID" MI_FQDN "$MI_FQDN"

@@ -5,7 +5,8 @@ The pipeline is built for controlled deployment:
 - **A push to `main` deploys nothing.** It only validates (Bicep build, script syntax).
 - **Deploys run only when you click Run pipeline**, and only the stages you tick.
 - **A failed stage stops everything after it.** Unticked stages are skipped without blocking later ones.
-- Deploy stages use the `i2-alpha` environment, so any approvals set on that environment apply.
+- Deploy stages use the `i2-<environment>` Azure DevOps environment, so any approvals set on it apply.
+- One-time setup (service connection, variable group, agent pool, the Setup parameters): [set-up-azure-devops.md](set-up-azure-devops.md). Order of runs: [runbook.md](runbook.md).
 
 ## Run it
 
@@ -17,10 +18,10 @@ Pipelines → i2 → **Run pipeline**, set the options, then **Run**.
 | Infra: preview only (what-if) | **on** | see what would change; untick to actually deploy |
 | Secrets: seed missing secrets + certs | off | first deployment, or after adding a secret |
 | Secrets: reissue these certs | empty | e.g. `solr zookeeper` after a certificate change |
-| Workload: deploy to AKS | on | apply Kubernetes changes |
+| Workload: deploy to AKS | off | apply Kubernetes changes |
 | Workload: components | `all` | redeploy only what you fixed, e.g. `liberty`, `solr collections`, or `database` to resume a failed db-init |
 | Workload: preview only (kubectl diff) | off | see what would change without applying it |
-| Verify: run sanity checks | on | confirm the result |
+| Verify: run sanity checks | off | confirm the result |
 
 ## Common runs
 

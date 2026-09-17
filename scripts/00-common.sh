@@ -8,8 +8,11 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 log() { echo ">>> $*"; }
 ns=i2analyze
 export PATH="$PATH:$HOME/.local/bin"
+# One environment name drives the parameter file and the deployment name.
+I2_ENV="${I2_ENV:-dev}"
+BICEP_PARAM="${BICEP_PARAM:-bicep/parameters/${I2_ENV}.bicepparam}"
 # The subscription-scope deployment scripts/10-deploy-infra.sh creates and reads back.
-DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-i2-infra-alpha}"
+DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-i2-infra-${I2_ENV}}"
 
 # Resource names from the infra deployment outputs: RG, KV, ACR, AKS, WI_CLIENT_ID, MI_FQDN,
 # plus TENANT_ID from the signed-in account. A value already set (env.sh or the environment)

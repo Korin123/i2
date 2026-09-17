@@ -2,33 +2,39 @@
 // i2 Analyze on Azure - platform infrastructure (subscription scope).
 // Deploys network, monitoring, Key Vault, ACR, storage, AKS, workload
 // identity, and the SQL Managed Instance data tier, into one resource
-// group. The VNet is EXISTING (brownfield) - i2 only adds its subnets.
-// Author: Korin Taunton, Lead Architect.
+// group named by the naming functions in bicep/naming.
+// networkMode 'new' creates the VNet, subnets and private DNS zones;
+// 'existing' attaches i2's subnets to an existing VNet and uses existing
+// private DNS zones.
 // =====================================================================
 
 targetScope = 'subscription'
 
-import { getResourceName } from 'br/core:naming:latest'
+import { getResourceName } from 'naming/naming.bicep'
 
-@description('Workload short name for the naming module.')
+@description('Workload short name used in resource names.')
 param workload string = 'i2'
 
-@description('Environment code.')
-param environment string = 'alpha'
+@description('Environment code used in resource names, e.g. dev, test, prod.')
+param environment string
 
 @description('Primary region (three zones for the HA node pools).')
-param location string = 'uksouth'
+param location string
 
-@description('The /24 added to the existing VNet, solely for i2. Derives the subnet CIDRs. PREREQUISITE: added to the VNet address space by the VNet owner.')
+@description('new = create a VNet and private DNS zones for i2. existing = attach to an existing VNet and private DNS zones.')
+@allowed([ 'new', 'existing' ])
+param networkMode string = 'new'
+
+@description('The /24 for i2: the new VNet\'s address space, or (existing mode) a range already added to the existing VNet. Subnet CIDRs derive from it.')
 param i2AddressPrefix string = '10.200.212.0/24'
 
-@description('Name of the existing (brownfield) VNet the i2 subnets attach to.')
-param existingVnetName string
+@description('existing mode: name of the VNet the i2 subnets attach to.')
+param existingVnetName string = ''
 
-@description('Resource group of the existing VNet.')
-param existingVnetResourceGroupName string
+@description('existing mode: resource group of that VNet.')
+param existingVnetResourceGroupName string = ''
 
-@description('Resource group holding the central private DNS zones already linked to the VNet.')
+@description('existing mode: resource group holding the private DNS zones (privatelink.vaultcore.azure.net, privatelink.azurecr.io, privatelink.blob.core.windows.net) linked to the VNet.')
 param privateDnsResourceGroupName string = existingVnetResourceGroupName
 
 @description('Object ID of the AKS admin Entra group (cluster-admin binding). Zeros placeholder is skipped.')
@@ -52,7 +58,7 @@ param sqlMiAdminLogin string = 'i2miadmin'
 @description('MI SQL administrator password. Supply from Key Vault via the pipeline - never hard-coded.')
 param sqlMiAdminPassword string
 
-@description('MI instance collation. IMMUTABLE at creation - confirm against i2 4.4.x Information Store prerequisites.')
+@description('MI instance collation. IMMUTABLE at creation - set it to Collation in the i2 config\'s InfoStoreNamesSQLServer.properties (scripts/30-build-images.sh build prints it).')
 param sqlMiCollation string = 'Latin1_General_100_CI_AS'
 
 @description('MI vCores (GP Gen5 4-80).')
@@ -61,11 +67,9 @@ param sqlMiVCores int = 8
 @description('Optional Entra admin group object ID for MI management-plane admin.')
 param sqlMiEntraAdminGroupObjectId string = ''
 
-@description('Tags applied to every resource group.')
+@description('Tags applied to every resource. Add owner, cost centre etc. in the parameter file.')
 param tags object = {
   workload: 'i2-analyze'
-  owner: 'Korin Taunton'
-  costCentre: 'forensic-platform'
   environment: environment
 }
 
@@ -77,12 +81,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   tags: tags
 }
 
-// Central private DNS zones already exist and are linked to the VNet.
-// 4-arg resourceId (at subscription scope a 3-arg first value is read as a sub ID).
-var dnsZoneVaultId = resourceId(subscription().subscriptionId, privateDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')
-var dnsZoneAcrId = resourceId(subscription().subscriptionId, privateDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', 'privatelink.azurecr.io')
-#disable-next-line no-hardcoded-env-urls
-var dnsZoneBlobId = resourceId(subscription().subscriptionId, privateDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')
+var newNetwork = networkMode == 'new'
 
 module net 'modules/network-nsgs.bicep' = {
   name: 'i2-net-nsgs'
@@ -90,9 +89,24 @@ module net 'modules/network-nsgs.bicep' = {
   params: { workload: workload, environment: environment, location: location, tags: tags }
 }
 
-module subnets 'modules/network-subnets.bicep' = {
+// new: a VNet with the i2 subnets, in the i2 resource group
+module vnet 'modules/network-vnet.bicep' = if (newNetwork) {
+  name: 'i2-net-vnet'
+  scope: rg
+  params: {
+    workload: workload, environment: environment, location: location
+    addressPrefix: i2AddressPrefix
+    aksNsgId: net.outputs.aksNsgId
+    sqlMiNsgId: net.outputs.sqlMiNsgId
+    sqlMiRouteTableId: net.outputs.sqlMiRouteTableId
+    tags: tags
+  }
+}
+
+// existing: add the i2 subnets to an existing VNet
+module subnets 'modules/network-subnets.bicep' = if (!newNetwork) {
   name: 'i2-net-subnets'
-  scope: resourceGroup(subscription().subscriptionId, existingVnetResourceGroupName)
+  scope: resourceGroup(subscription().subscriptionId, newNetwork ? rgName : existingVnetResourceGroupName)
   params: {
     existingVnetName: existingVnetName
     i2AddressPrefix: i2AddressPrefix
@@ -101,6 +115,25 @@ module subnets 'modules/network-subnets.bicep' = {
     sqlMiRouteTableId: net.outputs.sqlMiRouteTableId
   }
 }
+
+// new: private DNS zones linked to the new VNet
+module dns 'modules/private-dns.bicep' = if (newNetwork) {
+  name: 'i2-net-dns'
+  scope: rg
+  params: { vnetId: vnet!.outputs.vnetId, tags: tags }
+}
+
+var aksSubnetId = newNetwork ? vnet!.outputs.aksSubnetId : subnets!.outputs.aksSubnetId
+var pepSubnetId = newNetwork ? vnet!.outputs.pepSubnetId : subnets!.outputs.pepSubnetId
+var sqlMiSubnetId = newNetwork ? vnet!.outputs.sqlMiSubnetId : subnets!.outputs.sqlMiSubnetId
+
+// existing: central zones already linked to the VNet.
+// 4-arg resourceId (at subscription scope a 3-arg first value is read as a sub ID).
+var existingDnsRg = empty(privateDnsResourceGroupName) ? 'unused' : privateDnsResourceGroupName
+var dnsZoneVaultId = newNetwork ? dns!.outputs.vaultZoneId : resourceId(subscription().subscriptionId, existingDnsRg, 'Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')
+var dnsZoneAcrId = newNetwork ? dns!.outputs.acrZoneId : resourceId(subscription().subscriptionId, existingDnsRg, 'Microsoft.Network/privateDnsZones', 'privatelink.azurecr.io')
+#disable-next-line no-hardcoded-env-urls
+var dnsZoneBlobId = newNetwork ? dns!.outputs.blobZoneId : resourceId(subscription().subscriptionId, existingDnsRg, 'Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')
 
 module monitoring 'modules/monitoring.bicep' = {
   name: 'i2-monitoring'
@@ -113,7 +146,7 @@ module keyVault 'modules/keyvault.bicep' = {
   scope: rg
   params: {
     workload: workload, environment: environment, location: location
-    subnetId: subnets.outputs.pepSubnetId
+    subnetId: pepSubnetId
     privateDnsZoneVaultId: dnsZoneVaultId
     deployerObjectId: deployerObjectId
     allowedTestIps: allowedTestIps
@@ -126,7 +159,7 @@ module acr 'modules/acr.bicep' = {
   scope: rg
   params: {
     workload: workload, environment: environment, location: location
-    subnetId: subnets.outputs.pepSubnetId
+    subnetId: pepSubnetId
     privateDnsZoneAcrId: dnsZoneAcrId
     allowedTestIps: allowedTestIps
     tags: tags
@@ -138,7 +171,7 @@ module storage 'modules/storage.bicep' = {
   scope: rg
   params: {
     workload: workload, environment: environment, location: location
-    subnetId: subnets.outputs.pepSubnetId
+    subnetId: pepSubnetId
     privateDnsZoneBlobId: dnsZoneBlobId
     readerObjectId: deployerObjectId
     tags: tags
@@ -150,7 +183,7 @@ module aks 'modules/aks.bicep' = {
   scope: rg
   params: {
     workload: workload, environment: environment, location: location
-    nodeSubnetId: subnets.outputs.aksSubnetId
+    nodeSubnetId: aksSubnetId
     adminGroupObjectId: aksAdminGroupObjectId
     deployerObjectId: deployerObjectId
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
@@ -176,7 +209,7 @@ module sqlMi 'modules/sql-mi.bicep' = {
   scope: rg
   params: {
     workload: workload, environment: environment, location: location
-    subnetId: subnets.outputs.sqlMiSubnetId
+    subnetId: sqlMiSubnetId
     adminLogin: sqlMiAdminLogin
     adminPassword: sqlMiAdminPassword
     collation: sqlMiCollation
@@ -195,3 +228,5 @@ output keyVaultName string = keyVault.outputs.vaultName
 output storageAccountName string = storage.outputs.storageAccountName
 output workloadIdentityClientId string = workloadIdentity.outputs.clientId
 output sqlManagedInstanceFqdn string = sqlMi.outputs.managedInstanceFqdn
+@description('Where to place self-hosted Azure DevOps agent VMs (they need network access to the private Key Vault, ACR and AKS).')
+output agentsSubnetId string = newNetwork ? vnet!.outputs.agentsSubnetId : subnets!.outputs.agentsSubnetId

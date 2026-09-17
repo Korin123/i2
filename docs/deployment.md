@@ -1,11 +1,11 @@
 # Deployment
 
-End-to-end order. Scripts in `scripts/` are CI-agnostic; `pipelines/azure-pipelines.yml` runs them as stages. i2's recommendation is to build and push the images with ADT locally, then deploy from Azure.
+End-to-end order (the step-by-step version is [how-to/runbook.md](how-to/runbook.md)). Scripts in `scripts/` are CI-agnostic; `pipelines/azure-pipelines.yml` runs them as stages. i2's recommendation is to build and push the images with ADT locally, then deploy from Azure.
 
 ## Prerequisites
 - i2 licence + distribution. In the dev container (from WSL 2), run `scripts/05-install-adt.sh` (ADT bootstrap, pulls `i2eng-analyze-containers-client:<version>`). Obtain the i2 base images and the shared config.
-- Azure: subscription, region uksouth, existing VNet with the i2 /24 added, ACR, Key Vault, a self-hosted agent on the VNet.
-- Naming module `br/core:naming:latest` available to Bicep.
+- Azure: a subscription and an Azure DevOps project (see [how-to/set-up-azure-devops.md](how-to/set-up-azure-devops.md)). The infrastructure creates the VNet (`networkMode = new`) or attaches to an existing one (`existing`), plus ACR, Key Vault, AKS and the SQL MI; a self-hosted agent goes on its `snet-i2-agents` subnet.
+- Resource names come from `bicep/naming` (no external module registry needed).
 
 ## Steps
 

@@ -28,7 +28,7 @@
 
   <!-- ===================== AZURE TARGET ===================== -->
   <rect x="40" y="290" width="1280" height="600" rx="10" fill="#0f1620" stroke="#1f6feb" stroke-width="1.5"/>
-  <text x="58" y="316" font-size="13" font-weight="700" fill="#58a6ff">Azure subscription DFN-PD-APP  ·  uksouth  ·  resource group rg-i2-alpha-001</text>
+  <text x="58" y="316" font-size="13" font-weight="700" fill="#58a6ff">Azure subscription  ·  uksouth  ·  resource group rg-i2-alpha-001</text>
 
   <!-- VNet -->
   <rect x="58" y="330" width="900" height="544" rx="8" fill="#0d1b2a" stroke="#2f6fed" stroke-dasharray="5 4"/>

@@ -6,7 +6,9 @@ Short, task-focused guides. For the full deployment order and what each step doe
 |---|---|
 | Set up my machine to build and deploy | [set-up-the-dev-container.md](set-up-the-dev-container.md) |
 | Build the images and push them to ACR | [build-and-push-images.md](build-and-push-images.md) |
-| Deploy an environment for the first time | [first-deployment.md](first-deployment.md) |
+| **Deploy an environment start to finish (start here)** | [runbook.md](runbook.md) |
+| Set up Azure DevOps (service connection, variable group, agent) | [set-up-azure-devops.md](set-up-azure-devops.md) |
+| Deploy an environment for the first time (scripts only, no pipeline) | [first-deployment.md](first-deployment.md) |
 | Deploy from Azure DevOps, safely | [deploy-with-the-pipeline.md](deploy-with-the-pipeline.md) |
 | Fix something and redeploy just that part | [fix-and-redeploy.md](fix-and-redeploy.md) |
 | Re-run a Solr or database init Job | [rerun-init-jobs.md](rerun-init-jobs.md) |

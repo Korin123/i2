@@ -2,7 +2,7 @@
 
 Infrastructure-as-code, Kubernetes manifests and pipelines to deploy i2 Analyze on Microsoft Azure. This is the Azure counterpart to i2's `ansible-i2a` reference (AWS CDK + Ansible). It keeps the i2 application contract identical and swaps the AWS platform layer for Azure-native services.
 
-Author: Korin Taunton, Lead Architect. Shared with i2 Group for collaboration.
+Generic and reusable: any organisation can deploy it into its own subscription, with a new network or an existing one, through Azure DevOps. Developed in collaboration with i2 Group.
 
 ## What this deploys
 
@@ -47,13 +47,14 @@ i2-analyze-azure/
     architecture.svg        Azure target diagram
   bicep/                    Azure infrastructure
     main.bicep              subscription-scope entry point
-    bicepconfig.json        ACR naming-module alias
+    naming/                 resource naming functions (CAF abbreviations, no registry needed)
     modules/                network, keyvault, acr, aks, monitoring, workload-identity, storage, sql-mi
-    parameters/             *.bicepparam (placeholders; real values via pipeline variables)
+    parameters/             <env>.bicepparam per environment; copy example.bicepparam
   k8s/                      Kubernetes manifests (Solr, ZooKeeper, Liberty, connectors, services, ingress)
-    jobs/                   db_init, solr-zk-init and solr-collections Jobs
+    jobs/                   solr-zk-init, solr-collections, db-init and match-rules Jobs
   images/solr-init/         Solr cluster init image (ADT solr_client + generated configsets)
   images/db-init/           Information Store init image (ADT sqlserver_client + generated DB scripts)
+  images/i2-tools/          i2 tools image for the system match rules Job (ADT i2a_tools + config)
   scripts/                  CI-agnostic deploy logic (run locally or from any pipeline)
   pipelines/                azure-pipelines.yml (Azure DevOps)
   config/                   where the i2 shared config lands (distribution obtained separately)
@@ -61,26 +62,23 @@ i2-analyze-azure/
 
 ## Prerequisites
 
-- An i2 Analyze licence and the i2 distribution / container images (obtained from i2, never committed here). See `config/README.md`.
-- Azure subscription, region uksouth, and an existing (brownfield) VNet the i2 subnets attach to.
-- A private container registry (ACR) reachable from the build agent, and a self-hosted pipeline agent on the VNet for the private endpoints and the private AKS API.
-- The naming module `br/core:naming:latest` (ACR-hosted function import) available to Bicep.
-- Tooling: az + Bicep, kubectl, kubelogin, Docker, openssl. Two dev containers provide them (`.devcontainer/`): **i2 - Azure tools**, which opens from any checkout including Windows, for deploying; and **i2 - ADT + Azure**, opened from a clone inside WSL 2, which adds i2's ADT for building the images. See [docs/how-to/set-up-the-dev-container.md](docs/how-to/set-up-the-dev-container.md).
+- An i2 Analyze licence and the **i2 Analyze minimal toolkit** (requested from i2 support, never committed here). See `config/README.md`.
+- An Azure subscription, and an Azure DevOps project for the pipeline. A VNet is optional: `networkMode = 'new'` creates one, `'existing'` attaches to yours.
+- A self-hosted Azure DevOps agent that can reach the i2 VNet (Key Vault, ACR and AKS are private). The deployment creates a subnet for it.
+- Tooling comes in the dev containers (`.devcontainer/`): **i2 - ADT + Azure** (from a WSL 2 clone) builds the images; **i2 - Azure tools** opens from any checkout. See [docs/how-to/set-up-the-dev-container.md](docs/how-to/set-up-the-dev-container.md).
 
-## Quickstart (discovery-first)
+## Getting started
 
-1. Obtain the i2 distribution and push the base images into ACR, or `az acr import` them. See `docs/deployment.md`.
-2. Fill `bicep/parameters/alpha.bicepparam` (or supply via pipeline variables). No secrets in the file.
-3. Deploy infrastructure: `scripts/10-deploy-infra.sh`.
-4. Seed the secret and PKI set into Key Vault: `scripts/20-seed-secrets-pki.sh`.
-5. Build and push the images with ADT in the dev container (i2-recommended): ADT builds the configured Liberty and `solr_redhat` images, the script generates the Solr configsets into `i2-solr-init` and pushes them to ACR: `scripts/30-build-images.sh`.
-6. Deploy the workload in ADT's order (ZooKeeper, Solr cluster init, Solr, collections, Information Store, connectors, Liberty, system match rules): `scripts/40-deploy-workload.sh`. `scripts/50-bootstrap-data.sh` re-runs only the Information Store step.
-7. Verify: `scripts/60-sanity.sh`.
+Follow **[docs/how-to/runbook.md](docs/how-to/runbook.md)**: every step, where to do it (dev container or pipeline), what to do, and what you should see.
 
-The Azure DevOps pipeline (`pipelines/azure-pipelines.yml`) runs the same scripts as ordered stages. Pushes to `main` only validate; deploys run manually, stage by stage, with previews (what-if / diff) and per-component redeploys.
+In short:
+1. One-time setup: dev container, `bicep/parameters/<env>.bicepparam` (copy `example.bicepparam`), Azure DevOps (service connection, variable group, environment, pipeline).
+2. **Pipeline:** create the infrastructure (Bicep: VNet, Key Vault, ACR, AKS, SQL MI, ...), then a self-hosted agent on its subnet, then secrets and certificates.
+3. **Dev container:** build the i2 images with ADT, `scripts/30-build-images.sh` pushes them to ACR.
+4. **Pipeline:** deploy i2 to AKS in ADT's order, then run the sanity checks.
 
-Step-by-step guides for these and for fixing and redeploying: [`docs/how-to/`](docs/how-to/README.md).
+Resource names come from the naming functions in `bicep/naming` (CAF abbreviations, for example `kv-i2-dev-001`); the scripts read them from the deployment, so they are never typed by hand. Pushes to `main` only validate; deploys run manually, stage by stage, with previews (what-if / diff) and per-component redeploys.
 
 ## Status
 
-Alpha proved the platform end to end on AKS (Liberty, Solr, ZooKeeper, and a SQL Server container all running). This repo is the canonical, shareable version and moves the data tier to SQL Managed Instance. See `docs/decisions.md`.
+An earlier alpha proved the platform on AKS (Liberty, Solr, ZooKeeper and a SQL Server container). This repository is the generic, shareable version, with the data tier on SQL Managed Instance and the i2 application layer aligned to ADT 3.2.2. See `docs/decisions.md`.

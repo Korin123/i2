@@ -27,7 +27,7 @@ Both have az, Bicep, kubectl, kubelogin, jq and the Docker CLI (using Docker Des
 
 1. **Clone inside WSL**, not on a Windows drive:
    ```bash
-   cd ~ && git clone https://github.com/Korin123/i2.git && cd i2 && code .
+   cd ~ && git clone <this repository URL> i2 && cd i2 && code .
    ```
 2. **F1 → Dev Containers: Reopen in Container** → **i2 - ADT + Azure (open from WSL)**.
 3. Sign in and create your settings file:

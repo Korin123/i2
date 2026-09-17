@@ -1,5 +1,6 @@
-# Default owners for this repository
-* @dfn-platform-architecture
-# i2 collaborators - add i2 GitHub handles here for review on the app-contract areas
-# /k8s/         @i2group-reviewer
-# /config/      @i2group-reviewer
+# Default owners for this repository - replace with your platform team
+# * @<org>/<platform-team>
+# i2 collaborators - review of the application contract areas
+# /k8s/         @<i2-reviewer>
+# /images/      @<i2-reviewer>
+# /config/      @<i2-reviewer>

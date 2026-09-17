@@ -1,7 +1,7 @@
 // Private AKS cluster. Zone-redundant system pool, memory-weighted user pool for
 // ZooKeeper/Liberty and a dedicated tainted Solr pool. Azure CNI overlay (Cilium),
 // Entra + Azure RBAC, workload identity, KV secrets provider, private API.
-import { getResourceName } from 'br/core:naming:latest'
+import { getResourceName } from '../naming/naming.bicep'
 param workload string
 param environment string
 param location string
@@ -92,7 +92,7 @@ resource solrPool 'Microsoft.ContainerService/managedClusters/agentPools@2024-09
   }
 }
 
-resource acrPull'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(aks.id, acrId, 'acrpull')
   scope: resourceGroup()
   properties: {

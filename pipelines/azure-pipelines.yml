@@ -1,15 +1,16 @@
-# Azure DevOps pipeline. Thin - it runs the scripts in scripts/, which also run
-# locally and from any CI (a GitHub Actions workflow can call the same scripts).
-# Runs on a self-hosted agent on the VNet for the private KV/ACR/AKS.
+# Azure DevOps pipeline. Thin - it runs the scripts in scripts/, which also run locally.
 #
 # Controlled deployment:
 # - A push to main runs Validate only. Nothing is deployed automatically.
 # - Deploy stages run only on a manual run ("Run pipeline"), and only the stages you tick.
-#   Pick components to redeploy just what you fixed, and use the preview options to see
-#   the changes (Bicep what-if / kubectl diff) before applying them.
-# - Image build (scripts/30) is done locally with ADT in the dev container (i2-recommended),
-#   not here. Deploy stages check the images they need exist in ACR first.
-# See docs/how-to/deploy-with-the-pipeline.md.
+#   Pick components to redeploy just what you fixed, and use the preview options to see the
+#   changes (Bicep what-if / kubectl diff) before applying them.
+# - Images are built locally with ADT in the dev container (i2-recommended) and pushed with
+#   scripts/30-build-images.sh, not here. Deploy stages check the images exist in ACR first.
+#
+# One-time setup per organisation (docs/how-to/set-up-azure-devops.md): set the defaults of the
+# four "Setup" parameters below to your environment, service connection and agent pools.
+# See docs/how-to/runbook.md for the order of runs.
 
 trigger:
   branches:
@@ -24,6 +25,24 @@ trigger:
       - pipelines/**
 
 parameters:
+  # --- Setup: change these defaults once for your organisation ---
+  - name: environment
+    displayName: 'Setup: environment (uses bicep/parameters/<environment>.bicepparam and variable group i2-<environment>)'
+    type: string
+    default: 'dev'
+  - name: serviceConnection
+    displayName: 'Setup: Azure Resource Manager service connection'
+    type: string
+    default: 'i2-azure'
+  - name: vnetAgentPool
+    displayName: 'Setup: self-hosted agent pool with network access to the i2 VNet (for secrets, workload, sanity)'
+    type: string
+    default: 'i2-vnet-agents'
+  - name: infraOnMicrosoftHosted
+    displayName: 'Setup: run Validate and Infra on Microsoft-hosted agents (use for the first deployment, before the VNet exists)'
+    type: boolean
+    default: true
+  # --- Run options ---
   - name: deployInfra
     displayName: 'Infra: deploy Bicep (incl. SQL MI)'
     type: boolean
@@ -43,7 +62,7 @@ parameters:
   - name: deployWorkload
     displayName: 'Workload: deploy to AKS'
     type: boolean
-    default: true
+    default: false
   - name: components
     displayName: 'Workload: components (all, or any of: base zookeeper solr-init solr collections database connectors liberty match-rules ingress)'
     type: string
@@ -55,32 +74,33 @@ parameters:
   - name: runSanity
     displayName: 'Verify: run sanity checks'
     type: boolean
-    default: true
+    default: false
 
 variables:
-  - group: i2-alpha                 # SUBSCRIPTION_ID, LOCATION, BICEP_PARAM, I2_VERSION, ADT_VERSION (resource names come from the deployment outputs)
-  - name: serviceConnection
-    value: 'DFN-ADO-CONN'
+  # SUBSCRIPTION_ID, LOCATION, I2_VERSION, ADT_VERSION. Resource names come from the deployment outputs.
+  - group: i2-${{ parameters.environment }}
+  - name: I2_ENV
+    value: ${{ parameters.environment }}
   - name: isManual
     value: $[eq(variables['Build.Reason'], 'Manual')]
 
-pool:
-  name: 'alpha-vnet'               # self-hosted, on-network
-
 stages:
   - stage: Validate
+    pool:
+      ${{ if parameters.infraOnMicrosoftHosted }}:
+        vmImage: ubuntu-latest
+      ${{ else }}:
+        name: ${{ parameters.vnetAgentPool }}
     jobs:
       - job: validate
         steps:
           - task: AzureCLI@2
             displayName: 'bicep build'
             inputs:
-              azureSubscription: $(serviceConnection)
+              azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: bash
               scriptLocation: inlineScript
-              inlineScript: |
-                az bicep restore --file bicep/main.bicep
-                az bicep build --file bicep/main.bicep
+              inlineScript: az bicep build --file bicep/main.bicep --stdout > /dev/null
           - bash: |
               set -e
               for f in scripts/*.sh images/*/*.sh; do bash -n "$f"; done
@@ -93,9 +113,14 @@ stages:
   - stage: DeployInfra
     dependsOn: Validate
     condition: and(succeeded(), eq(variables.isManual, true), eq('${{ parameters.deployInfra }}', 'true'))
+    pool:
+      ${{ if parameters.infraOnMicrosoftHosted }}:
+        vmImage: ubuntu-latest
+      ${{ else }}:
+        name: ${{ parameters.vnetAgentPool }}
     jobs:
       - deployment: infra
-        environment: i2-alpha           # approvals/checks configured on the environment
+        environment: i2-${{ parameters.environment }}   # approvals/checks configured on the environment
         strategy:
           runOnce:
             deploy:
@@ -104,9 +129,10 @@ stages:
                 - task: AzureCLI@2
                   displayName: ${{ iif(parameters.infraWhatIf, 'What-if infra (no changes)', 'Deploy infra (incl. SQL MI)') }}
                   inputs:
-                    azureSubscription: $(serviceConnection)
+                    azureSubscription: ${{ parameters.serviceConnection }}
                     scriptType: bash
                     scriptLocation: inlineScript
+                    addSpnToEnvironment: true
                     inlineScript: bash scripts/10-deploy-infra.sh
                   env:
                     WHAT_IF: ${{ parameters.infraWhatIf }}
@@ -114,13 +140,15 @@ stages:
   - stage: SeedSecrets
     dependsOn: [ Validate, DeployInfra ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.seedSecrets }}', 'true'))
+    pool:
+      name: ${{ parameters.vnetAgentPool }}
     jobs:
       - job: seed
         steps:
           - task: AzureCLI@2
             displayName: 'Seed PKI + secret set into Key Vault'
             inputs:
-              azureSubscription: $(serviceConnection)
+              azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: bash scripts/20-seed-secrets-pki.sh
@@ -130,9 +158,11 @@ stages:
   - stage: DeployWorkload
     dependsOn: [ Validate, DeployInfra, SeedSecrets ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.deployWorkload }}', 'true'))
+    pool:
+      name: ${{ parameters.vnetAgentPool }}
     jobs:
       - deployment: k8s
-        environment: i2-alpha
+        environment: i2-${{ parameters.environment }}
         strategy:
           runOnce:
             deploy:
@@ -141,7 +171,7 @@ stages:
                 - task: AzureCLI@2
                   displayName: '${{ iif(parameters.workloadDryRun, ''Diff'', ''Apply'') }} manifests: ${{ parameters.components }}'
                   inputs:
-                    azureSubscription: $(serviceConnection)
+                    azureSubscription: ${{ parameters.serviceConnection }}
                     scriptType: bash
                     scriptLocation: inlineScript
                     inlineScript: bash scripts/40-deploy-workload.sh ${{ replace(parameters.components, ',', ' ') }}
@@ -151,13 +181,15 @@ stages:
   - stage: Sanity
     dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.runSanity }}', 'true'))
+    pool:
+      name: ${{ parameters.vnetAgentPool }}
     jobs:
       - job: sanity
         steps:
           - task: AzureCLI@2
             displayName: 'Sanity checks'
             inputs:
-              azureSubscription: $(serviceConnection)
+              azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: bash scripts/60-sanity.sh

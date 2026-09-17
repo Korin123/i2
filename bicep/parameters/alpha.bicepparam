@@ -6,10 +6,13 @@ param workload = 'i2'
 param environment = 'alpha'
 param location = 'uksouth'
 
+// Nothing exists in Azure for this environment yet, so Bicep creates the VNet and DNS zones.
+// To attach to an existing VNet instead: networkMode = 'existing' and uncomment the three below.
+param networkMode = 'new'
 param i2AddressPrefix = '10.200.212.0/24'
-param existingVnetName = '<EXISTING_VNET_NAME>'
-param existingVnetResourceGroupName = '<EXISTING_VNET_RG>'
-param privateDnsResourceGroupName = '<PRIVATE_DNS_RG>'
+// param existingVnetName = '<EXISTING_VNET_NAME>'
+// param existingVnetResourceGroupName = '<EXISTING_VNET_RG>'
+// param privateDnsResourceGroupName = '<PRIVATE_DNS_RG>'
 
 // Entra group granted AKS + Grafana admin. Zeros placeholder is skipped.
 param aksAdminGroupObjectId = '00000000-0000-0000-0000-000000000000'

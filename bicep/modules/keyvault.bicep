@@ -1,6 +1,6 @@
 // i2 Key Vault - the i2 secret set + PKI. RBAC auth, private endpoint,
 // public access off unless test IPs are allow-listed.
-import { getResourceName } from 'br/core:naming:latest'
+import { getResourceName } from '../naming/naming.bicep'
 param workload string
 param environment string
 param location string

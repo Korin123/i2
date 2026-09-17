@@ -1,6 +1,6 @@
 // UAMI federated to the i2 pod service accounts, granted Key Vault Secrets
 // User so the KV CSI driver can project the i2 secret set into the pods.
-import { getResourceName } from 'br/core:naming:latest'
+import { getResourceName } from '../naming/naming.bicep'
 param workload string
 param environment string
 param location string

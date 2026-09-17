@@ -1,7 +1,7 @@
 // NSGs and the SQL MI route table (in the i2 RG). The VNet is external;
 // i2 only owns these attachments. MI uses service-aided subnet config, so
 // its NSG and route table exist and are associated but carry no manual rules.
-import { getResourceName } from 'br/core:naming:latest'
+import { getResourceName } from '../naming/naming.bicep'
 
 param workload string
 param environment string

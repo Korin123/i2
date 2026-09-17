@@ -1,6 +1,6 @@
 // Private storage for the i2 distribution and shared config. No public access,
 // private blob endpoint. The team uploads the distribution once from on-network.
-import { getResourceName } from 'br/core:naming:latest'
+import { getResourceName } from '../naming/naming.bicep'
 param workload string
 param environment string
 param location string

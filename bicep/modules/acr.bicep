@@ -1,6 +1,6 @@
 // Premium private ACR. AKS pulls over the private endpoint; the local ADT
 // build pushes the configured Liberty image and the base images here.
-import { getResourceName } from 'br/core:naming:latest'
+import { getResourceName } from '../naming/naming.bicep'
 param workload string
 param environment string
 param location string

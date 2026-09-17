@@ -49,3 +49,14 @@ output aksSubnetId string = aksSubnet.id
 output pepSubnetId string = pepSubnet.id
 output enrichSubnetId string = enrichSubnet.id
 output sqlMiSubnetId string = sqlMiSubnet.id
+
+// self-hosted Azure DevOps agents (secrets, workload and sanity stages need VNet access)
+resource agentsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+  name: '${existingVnetName}/snet-i2-agents'
+  properties: {
+    addressPrefix: cidrSubnet(i2AddressPrefix, 27, 7)   // .224/27
+  }
+  dependsOn: [ sqlMiSubnet ]
+}
+
+output agentsSubnetId string = agentsSubnet.id
