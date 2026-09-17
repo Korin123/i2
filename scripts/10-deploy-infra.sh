@@ -76,13 +76,13 @@ store_password() {   # $1 = resource group, $2 = Key Vault
   # Written through the Azure Resource Manager API (control plane), not the Key Vault data
   # plane, so it works from an agent with no network path to the private Key Vault (e.g. a
   # Microsoft-hosted agent on the first deployment).
-  log "Storing MI admin password in Key Vault $2 (sqlmi-admin-password, SA_PASSWORD)"
+  # One secret; the db-init Job mounts it as SA_PASSWORD (k8s/secretproviderclass.yaml).
+  # Key Vault secret names allow only letters, digits and hyphens.
+  log "Storing MI admin password in Key Vault $2 (sqlmi-admin-password)"
   local body; body="$(printf '{"properties":{"value":"%s"}}' "$MI_ADMIN_PW")"
-  for secret in sqlmi-admin-password SA_PASSWORD; do
-    az rest --method put --output none \
-      --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/$1/providers/Microsoft.KeyVault/vaults/$2/secrets/${secret}?api-version=2023-07-01" \
-      --body "$body"
-  done
+  az rest --method put --output none \
+    --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/$1/providers/Microsoft.KeyVault/vaults/$2/secrets/sqlmi-admin-password?api-version=2023-07-01" \
+    --body "$body"
 }
 
 log "Deploying bicep/main.bicep as '$DEPLOYMENT_NAME' (includes SQL MI - allow hours on first run)"

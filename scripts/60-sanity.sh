@@ -86,7 +86,7 @@ code="$(kubectl exec -n "$ns" liberty-0 -c liberty -- bash -c \
 # --- SQL Managed Instance ------------------------------------------------------
 kubectl exec -n "$ns" liberty-0 -c liberty -- bash -c "timeout 10 bash -c '</dev/tcp/${MI_FQDN}/1433'" >/dev/null 2>&1 \
   && pass "liberty reaches ${MI_FQDN}:1433" || fail "liberty reaches ${MI_FQDN}:1433"
-markers="$(kv SA_PASSWORD | kubectl run i2-sanity-sql -n "$ns" --rm -i --quiet --restart=Never \
+markers="$(kv sqlmi-admin-password | kubectl run i2-sanity-sql -n "$ns" --rm -i --quiet --restart=Never \
   --image="${ACR_LS}/i2group/i2-db-init:${I2_VERSION}" \
   --overrides='{"apiVersion":"v1","spec":{"nodeSelector":{"workload":"i2-analyze"}}}' \
   --command -- bash -c "read -r pw; /opt/mssql-tools/bin/sqlcmd -N -b -S '${MI_FQDN},1433' -U i2miadmin -P \"\$pw\" -h -1 -W \
