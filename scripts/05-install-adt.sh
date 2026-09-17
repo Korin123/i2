@@ -20,4 +20,4 @@ chmod +x "$dest/bootstrap"
 
 echo ">>> ADT ${ADT_VERSION} installed in adt/. Next:"
 echo "    1. toolkit not in adt/pre-reqs yet? copy it to adt/pre-reqs/i2analyzeMinimal.tar.gz, then: manage-environment -t update"
-echo "    2. manage-environment -t link -y   (then deploy -c base-demo -t package, see scripts/30)"
+echo "    2. create the base-demo config and build: docs/how-to/build-and-push-images.md (step A3 on)"

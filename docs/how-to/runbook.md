@@ -84,9 +84,9 @@ Needs the **i2 Analyze minimal toolkit** from i2 support ([how to request it](ht
 
 ### 9. Build with ADT
 **Where:** Dev container.
-**Do:** set `DB_DIALECT=sqlserver` in `adt/configs/base-demo/utils/variables.conf`, then:
+**Do:** create the configuration from ADT's template, then set `DEPLOYMENT_PATTERN="istore"` and `DB_DIALECT="sqlserver"` in `adt/configs/base-demo/utils/variables.conf` ([simple guide](build-and-push-images.md)):
 ```bash
-manage-environment -t link -y
+cp -r adt/templates/config-development adt/configs/base-demo
 deploy -c base-demo -t package
 deploy -c base-demo -t generate-db-scripts -y
 ./scripts/30-build-images.sh build

@@ -11,7 +11,7 @@ NOT committed (see `.gitignore`). On the build box:
    `scripts/05-install-adt.sh` (ADT pinned to ADT_VERSION, into git-ignored `adt/`), then put
    the minimal toolkit at `adt/pre-reqs/i2analyzeMinimal.tar.gz`.
    ADT docs: https://i2group.github.io/analyze-deployment-tooling/
-2. Place / link the `base-demo` shared config, then `manage-environment -t link -y`.
+2. Create the `base-demo` config from ADT's template (`cp -r adt/templates/config-development adt/configs/base-demo`) and set `DEPLOYMENT_PATTERN="istore"` and `DB_DIALECT="sqlserver"` in its `utils/variables.conf`. A config shared from another repository is linked instead with `manage-environment -t link`.
 3. `deploy -c base-demo -t package` builds the configured Liberty image; `scripts/30-build-images.sh`
    then generates the Solr configsets from it and pushes Liberty, `solr_redhat` and `i2-solr-init`.
 

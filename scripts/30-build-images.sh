@@ -29,7 +29,8 @@ if [[ "$MODE" != push ]]; then
   log "1) Check the ADT build"
   cat <<NOTE
    In the dev container, with ADT installed and the toolkit in adt/pre-reqs:
-     manage-environment -t link -y                        # link the ${CONFIG_NAME} shared config
+     cp -r adt/templates/config-development adt/configs/${CONFIG_NAME}   # once, then in its utils/variables.conf:
+                                                          #   DEPLOYMENT_PATTERN="istore" DB_DIALECT="sqlserver"
      deploy -c ${CONFIG_NAME} -t package                  # builds liberty_configured_redhat:${CONFIG_NAME}-<ver>
      deploy -c ${CONFIG_NAME} -t generate-db-scripts -y   # generates the ISTORE SQL (used by db-init)
    Core images missing (solr_redhat etc.)? run: manage-environment -t update
