@@ -7,7 +7,7 @@ end to end, then replace it with the DFN schema.
 The i2 distribution and images are obtained separately under the i2 licence and are
 NOT committed (see `.gitignore`). On the build box:
 
-1. Open this repo in its dev container (ADT dev image + Azure tooling, from WSL 2), run
+1. Open this repo in the **i2 - ADT + Azure** dev container (from a WSL 2 clone), run
    `scripts/05-install-adt.sh` (ADT pinned to ADT_VERSION, into git-ignored `adt/`), then put
    the minimal toolkit at `adt/pre-reqs/i2analyzeMinimal.tar.gz`.
    ADT docs: https://i2group.github.io/analyze-deployment-tooling/

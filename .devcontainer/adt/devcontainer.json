@@ -1,9 +1,13 @@
 {
-  // One container for both halves of the build: i2's ADT dev image (builds the
-  // configured Liberty image, generates DB scripts / Solr schemas) plus the Azure
-  // tooling (az, Bicep, kubectl, kubelogin) that pushes to ACR and deploys to AKS.
-  // Based on ADT's own .devcontainer (v3.2.2). Open from WSL 2 / macOS, not a Windows path.
-  "name": "i2 Analyze on Azure (ADT + Azure)",
+  // Full build environment: i2's ADT dev image (builds the configured Liberty image,
+  // generates DB scripts / Solr schemas) plus the Azure tooling (az, Bicep, kubectl,
+  // kubelogin) that pushes to ACR and deploys to AKS. Based on ADT's own .devcontainer (v3.2.2).
+  //
+  // OPEN FROM WSL 2 (or macOS/Linux), i.e. a clone under /home/<you>. ADT bind-mounts workspace
+  // paths into the containers it starts, so the workspace sits at the same path inside and
+  // outside the container. A Windows path (D:\...) is not a valid container path and VS Code
+  // shows a blank window - use the "Azure tools" configuration for a Windows checkout.
+  "name": "i2 - ADT + Azure (open from WSL)",
   "image": "i2group/i2eng-analyze-containers-dev:1.2",
   "remoteUser": "vscode",
   "runArgs": [ "--init" ],
@@ -14,8 +18,6 @@
     // keep az login across rebuilds
     "source=i2-azure-config,target=/home/vscode/.azure,type=volume"
   ],
-  // ADT bind-mounts workspace paths into the containers it starts on the host daemon,
-  // so the workspace must sit at the same path inside and outside the container
   "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached",
   "workspaceFolder": "${localWorkspaceFolder}",
   "onCreateCommand": "bash .devcontainer/on-create.sh",

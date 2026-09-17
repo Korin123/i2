@@ -11,6 +11,8 @@ fi
 docker network connect eia "${HOSTNAME}" 2>/dev/null || true
 
 mkdir -p "$HOME/.local/bin"
+# a new named volume mounted at ~/.azure is root-owned; az needs to write there
+sudo chown "$(id -u):$(id -g)" "$HOME/.azure" 2>/dev/null || true
 
 # az in a venv (the azure-cli RPM pulls deps that are not in the UBI repos)
 if ! command -v az >/dev/null; then

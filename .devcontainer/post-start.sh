@@ -3,7 +3,10 @@
 # .devcontainer/bootstrap start does), otherwise say how to install it.
 set -euo pipefail
 
-if [[ -x "${ANALYZE_CONTAINERS_ROOT_DIR}/scripts/manage-environment" ]]; then
+if [[ "${I2_DEVCONTAINER:-}" == azure ]]; then
+  echo ">>> Azure tools container: deploy with scripts/10, 20, 40, 50, 60."
+  echo "    Building images (scripts/05, 30) needs the 'ADT + Azure' container opened from WSL."
+elif [[ -x "${ANALYZE_CONTAINERS_ROOT_DIR:-}/scripts/manage-environment" ]]; then
   CONTINUE_ON_ERROR=true "${ANALYZE_CONTAINERS_ROOT_DIR}/scripts/manage-environment" -t link
   echo "Dev container ready (ADT linked)."
 else

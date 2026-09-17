@@ -2,7 +2,7 @@
 
 Images are built locally with ADT (i2's recommendation), then pushed to ACR. The pipeline never builds them; it only checks they exist.
 
-**Run in:** the dev container ([set up](set-up-the-dev-container.md)), signed in with `az login`.
+**Run in:** the **i2 - ADT + Azure** dev container, opened from a WSL clone ([set up](set-up-the-dev-container.md)), signed in with `az login`.
 
 1. Link the shared config and build the configured Liberty image:
    ```bash

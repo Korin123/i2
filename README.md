@@ -65,7 +65,7 @@ i2-analyze-azure/
 - Azure subscription, region uksouth, and an existing (brownfield) VNet the i2 subnets attach to.
 - A private container registry (ACR) reachable from the build agent, and a self-hosted pipeline agent on the VNet for the private endpoints and the private AKS API.
 - The naming module `br/core:naming:latest` (ACR-hosted function import) available to Bicep.
-- Tooling: az + Bicep, kubectl, kubelogin, Docker, openssl. The dev container (`.devcontainer/`) merges i2's ADT dev image with the Azure tooling, so the ADT image build and the ACR push / AKS deploy run from one place. Clone the repo inside WSL 2 (ADT needs matching host/container paths), "Reopen in Container", `az login`, then `scripts/05-install-adt.sh`. ADT docs: https://i2group.github.io/analyze-deployment-tooling/
+- Tooling: az + Bicep, kubectl, kubelogin, Docker, openssl. Two dev containers provide them (`.devcontainer/`): **i2 - Azure tools**, which opens from any checkout including Windows, for deploying; and **i2 - ADT + Azure**, opened from a clone inside WSL 2, which adds i2's ADT for building the images. See [docs/how-to/set-up-the-dev-container.md](docs/how-to/set-up-the-dev-container.md).
 
 ## Quickstart (discovery-first)
 
