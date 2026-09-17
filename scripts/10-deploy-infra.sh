@@ -26,7 +26,9 @@ else
 fi
 
 args=( --location "$LOCATION" --template-file bicep/main.bicep
-       --parameters "$BICEP_PARAM" --parameters sqlMiAdminPassword="$MI_ADMIN_PW" )
+       --parameters "$BICEP_PARAM" )
+# read by the parameter file (readEnvironmentVariable), so the password is never on a command line
+export SQL_MI_ADMIN_PASSWORD="$MI_ADMIN_PW"
 
 # Public IPs for the Key Vault / ACR firewalls, kept out of the (possibly public) repo:
 # ALLOWED_TEST_IPS="1.2.3.4 5.6.7.8" (env.sh or the pipeline variable group) overrides the file.

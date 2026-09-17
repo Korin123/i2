@@ -1,6 +1,6 @@
 // Log Analytics + Azure Monitor workspace (managed Prometheus) + Managed
 // Grafana. Replaces the reference HAProxy/Prometheus/Grafana containers.
-import { getResourceName, getResourceNameSimple } from '../naming/naming.bicep'
+import { getResourceNameSimple } from '../naming/naming.bicep'
 param workload string
 param environment string
 param location string

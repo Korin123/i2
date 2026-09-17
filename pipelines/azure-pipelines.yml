@@ -100,7 +100,11 @@ stages:
               azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: bash
               scriptLocation: inlineScript
-              inlineScript: az bicep build --file bicep/main.bicep --stdout > /dev/null
+              inlineScript: |
+                set -e
+                az bicep build --file bicep/main.bicep --stdout > /dev/null
+                az bicep build-params --file "bicep/parameters/${I2_ENV}.bicepparam" --stdout > /dev/null
+                echo "bicep + bicep/parameters/${I2_ENV}.bicepparam ok"
           - bash: |
               set -e
               for f in scripts/*.sh images/*/*.sh; do bash -n "$f"; done
