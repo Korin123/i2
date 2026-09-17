@@ -1,8 +1,8 @@
 # Azure DevOps pipeline. Thin - it runs the scripts in scripts/, which also run locally.
 #
 # Controlled deployment:
-# - A push to main runs Validate only. Nothing is deployed automatically.
-# - Deploy stages run only on a manual run ("Run pipeline"), and only the stages you tick.
+# - No automatic runs: pushes and pull requests start nothing.
+# - Every run is manual ("Run pipeline"); Validate always runs, then only the stages you choose.
 #   Pick components to redeploy just what you fixed, and use the preview options to see the
 #   changes (Bicep what-if / kubectl diff) before applying them.
 # - Images are built locally with ADT in the dev container (i2-recommended) and pushed with
@@ -12,17 +12,8 @@
 # four "Setup" parameters below to your environment, service connection and agent pools.
 # See docs/how-to/runbook.md for the order of runs.
 
-trigger:
-  branches:
-    include:
-      - main
-  paths:
-    include:
-      - bicep/**
-      - k8s/**
-      - scripts/**
-      - images/**
-      - pipelines/**
+trigger: none
+pr: none
 
 parameters:
   # --- Setup: change these defaults once for your organisation ---
@@ -33,7 +24,7 @@ parameters:
   - name: serviceConnection
     displayName: 'Setup: Azure Resource Manager service connection'
     type: string
-    default: 'i2-azure'
+    default: 'DFN-ADO-CONN'
   - name: vnetAgentPool
     displayName: 'Setup: self-hosted agent pool with network access to the i2 VNet (for secrets, workload, sanity)'
     type: string

@@ -2,7 +2,7 @@
 
 The pipeline is built for controlled deployment:
 
-- **A push to `main` deploys nothing.** It only validates (Bicep build, script syntax).
+- **Nothing runs automatically.** Pushes and pull requests start no runs.
 - **Deploys run only when you click Run pipeline**, and only the stages you tick.
 - **A failed stage stops everything after it.** Unticked stages are skipped without blocking later ones.
 - Deploy stages use the `i2-<environment>` Azure DevOps environment, so any approvals set on it apply.
