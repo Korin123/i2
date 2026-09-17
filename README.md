@@ -65,7 +65,7 @@ i2-analyze-azure/
 - An i2 Analyze licence and the **i2 Analyze minimal toolkit** (requested from i2 support, never committed here). See `config/README.md`.
 - An Azure subscription, and an Azure DevOps project for the pipeline. A VNet is optional: `networkMode = 'new'` creates one, `'existing'` attaches to yours.
 - A self-hosted Azure DevOps agent that can reach the i2 VNet (Key Vault, ACR and AKS are private). The deployment creates a subnet for it.
-- Tooling comes in the dev containers (`.devcontainer/`): **i2 - ADT + Azure** (from a WSL 2 clone) builds the images; **i2 - Azure tools** opens from any checkout. See [docs/how-to/set-up-the-dev-container.md](docs/how-to/set-up-the-dev-container.md).
+- Tooling comes in one dev container (`.devcontainer/adt`), **i2 - ADT + Azure**, opened from a WSL 2 clone: ADT for building images plus az, Bicep and kubectl. See [docs/how-to/set-up-the-dev-container.md](docs/how-to/set-up-the-dev-container.md).
 
 ## Getting started
 

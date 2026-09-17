@@ -10,7 +10,7 @@
   // OPEN FROM WSL 2 (or macOS/Linux), i.e. a clone under /home/<you>. ADT bind-mounts workspace
   // paths into the containers it starts, so the workspace sits at the same path inside and
   // outside the container. A Windows path (D:\...) is not a valid container path and VS Code
-  // shows a blank window - use the "Azure tools" configuration for a Windows checkout.
+  // shows a blank window - clone into WSL and open it from there.
   "name": "i2 - ADT + Azure (open from WSL)",
   "image": "i2group/i2eng-analyze-containers-dev:1.2",
   "remoteUser": "vscode",
