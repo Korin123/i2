@@ -8,7 +8,7 @@ Author: Korin Taunton, Lead Architect. Shared with i2 Group for collaboration.
 
 i2 Analyze as containers on Azure Kubernetes Service (AKS), with the data tier on Azure SQL Managed Instance:
 
-- Liberty (i2 Analyze application) - AKS Deployment, 2 replicas
+- Liberty (i2 Analyze application) - AKS StatefulSet, 2 replicas, a data volume each
 - i2 Connect connectors - AKS Deployments, mutual TLS
 - SolrCloud - AKS StatefulSet, 2 nodes (on containers)
 - ZooKeeper - AKS StatefulSet, 3 nodes
@@ -26,7 +26,7 @@ Same application, different platform layer. Full detail in `docs/aws-to-azure-ma
 |---|---|
 | AWS CDK (brownfield stacks) | Bicep (`bicep/`) |
 | Ansible controller + roles | Pipeline stages calling `scripts/` |
-| ECS Fargate (Liberty, connectors) | AKS Deployments |
+| ECS Fargate (Liberty, connectors) | AKS StatefulSet (Liberty), Deployments (connectors) |
 | Dedicated EC2 (Solr, ZooKeeper) | AKS StatefulSets |
 | RDS PostgreSQL | Azure SQL Managed Instance (SQL Server) |
 | ECR | Azure Container Registry |
