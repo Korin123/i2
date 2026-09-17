@@ -96,8 +96,8 @@ stages:
               echo "shell syntax ok"
             displayName: 'script syntax'
 
-  # Each deploy stage runs when: manual run + its box ticked + no earlier stage failed.
-  # Unticked stages are skipped and do not block later ones; a failed stage stops all later
+  # Each deploy stage runs when it is chosen (not skip / ticked) and no earlier stage failed.
+  # Stages not chosen are skipped and do not block later ones; a failed stage stops all later
   # ones (each stage depends on every earlier stage).
   - stage: DeployInfra
     dependsOn: Validate
