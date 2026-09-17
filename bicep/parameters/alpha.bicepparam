@@ -14,8 +14,9 @@ param i2AddressPrefix = '10.200.212.0/24'
 // param existingVnetResourceGroupName = '<EXISTING_VNET_RG>'
 // param privateDnsResourceGroupName = '<PRIVATE_DNS_RG>'
 
-// Entra group: AKS cluster admin, Grafana admin and ACR push. Zeros placeholder is skipped.
-param aksAdminGroupObjectId = '00000000-0000-0000-0000-000000000000'
+// Entra group: AKS cluster admin, Grafana admin and ACR push. Kept out of the repo: set
+// AKS_ADMIN_GROUP_OBJECT_ID in the i2-alpha variable group (or scripts/env.sh). Unset = skipped.
+param aksAdminGroupObjectId = readEnvironmentVariable('AKS_ADMIN_GROUP_OBJECT_ID', '00000000-0000-0000-0000-000000000000')
 param aksOutboundType = 'loadBalancer'
 
 // Deployer SPN object ID - looked up by scripts/10 in the pipeline, not committed.

@@ -38,6 +38,8 @@ if [[ -n "${ALLOWED_TEST_IPS:-}" ]]; then
   log "Allowing test IPs through the Key Vault and ACR firewalls: ${ALLOWED_TEST_IPS}"
 fi
 
+[[ -n "${AKS_ADMIN_GROUP_OBJECT_ID:-}" ]] || log "WARNING: AKS_ADMIN_GROUP_OBJECT_ID is not set: nobody gets AKS admin, Grafana admin or ACR push (unless set in $BICEP_PARAM)"
+
 # The identity running the deployment needs Key Vault and AKS access for the later steps.
 # In the pipeline (AzureCLI task with addSpnToEnvironment) look up the service principal's
 # object ID; otherwise DEPLOYER_OBJECT_ID or the value in the parameter file is used.

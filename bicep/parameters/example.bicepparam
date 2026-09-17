@@ -17,8 +17,9 @@ param i2AddressPrefix = '10.200.212.0/24'
 // param existingVnetResourceGroupName = '<vnet resource group>'
 // param privateDnsResourceGroupName = '<resource group of the privatelink.* DNS zones>'
 
-// Entra group (Object ID): AKS cluster admin, Grafana admin and ACR push. Zeros = skipped.
-param aksAdminGroupObjectId = '00000000-0000-0000-0000-000000000000'
+// Entra group (Object ID): AKS cluster admin, Grafana admin and ACR push. Unset = skipped.
+// Read from AKS_ADMIN_GROUP_OBJECT_ID (variable group or scripts/env.sh); or put the ID here.
+param aksAdminGroupObjectId = readEnvironmentVariable('AKS_ADMIN_GROUP_OBJECT_ID', '00000000-0000-0000-0000-000000000000')
 param aksOutboundType = 'loadBalancer'
 
 // Object ID of the pipeline's service principal (Azure DevOps service connection).

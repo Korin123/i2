@@ -25,6 +25,7 @@ One-time setup so `pipelines/azure-pipelines.yml` can create and deploy an i2 en
 | `I2_VERSION` | `4.4.6.1` |
 | `ADT_VERSION` | `3.2.2` |
 | `ALLOWED_TEST_IPS` | optional: public IPs (space-separated) allowed through the Key Vault and ACR firewalls, e.g. the PC that pushes images. Kept here, not in the repo |
+| `AKS_ADMIN_GROUP_OBJECT_ID` | Object ID of the Entra group that administers the environment (AKS cluster admin, Grafana admin, ACR push). Kept here, not in the repo |
 
 Resource names are not needed: the pipeline reads them from the infrastructure deployment.
 

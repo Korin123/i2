@@ -30,7 +30,7 @@ Edit `scripts/env.sh`: `SUBSCRIPTION_ID`, `LOCATION`, `I2_ENV=<env>`.
 **Do:** copy `bicep/parameters/example.bicepparam` to `bicep/parameters/<env>.bicepparam` and set:
 - `environment = '<env>'`, `location`
 - `networkMode`: `'new'` (nothing exists yet) or `'existing'` (attach to your VNet: set the three `existing*` values)
-- `aksAdminGroupObjectId`: Entra group that administers AKS
+- the Object ID of the Entra group that administers AKS: **not** in the file if the repo is public. Put it in the variable group as `AKS_ADMIN_GROUP_OBJECT_ID` (step 3)
 - the public IP of the PC that will push images (find it with `curl -s ifconfig.me`): **not** in the file if the repo is public. Put it in the variable group as `ALLOWED_TEST_IPS` (step 3)
 - `sqlMiCollation`: the value i2 gives you, or leave the default for a throwaway environment you will recreate
 

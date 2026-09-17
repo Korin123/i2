@@ -124,7 +124,7 @@ It finds the registry name from the Azure deployment by itself. You type no name
 |---|---|
 | `No infra deployment 'i2-infra-alpha' found` | The infrastructure isn't created yet (runbook step 5), or `I2_ENV` in `scripts/env.sh` is wrong |
 | `missing local image ...` | Redo Part A |
-| `unauthorized` / `denied` straight after `az acr login` | You are not in the admin group (`aksAdminGroupObjectId`), which gets push rights. Ask to be added, then `az logout`, `az login` and try again |
+| `unauthorized` / `denied` straight after `az acr login` | You are not in the admin group (`AKS_ADMIN_GROUP_OBJECT_ID`), which gets push rights. Ask to be added, then `az logout`, `az login` and try again |
 | `denied` / `unauthorized` / timeout on push | Your public IP isn't allowed. Run `curl -s ifconfig.me`, add it to `ALLOWED_TEST_IPS` in the `i2-alpha` variable group, rerun the infra pipeline, try again |
 
 **Part B is done.** Next: runbook step 11 (deploy the workload with the pipeline).
