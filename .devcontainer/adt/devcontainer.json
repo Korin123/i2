@@ -4,7 +4,8 @@
   // ACR and deploys to AKS. Differences from ADT's file, all additive except WORKSPACE:
   //   - WORKSPACE points at adt/, because ADT is installed into that subfolder here
   //     (scripts/05-install-adt.sh) instead of being the repository itself
-  //   - ~/.azure volume, ANALYZE_CONTAINERS_ROOT_DIR, PATH, and the Azure setup script
+  //   - image: ADT's image with az, Bicep, kubectl and kubelogin added (.devcontainer/image)
+  //   - ~/.azure volume, ANALYZE_CONTAINERS_ROOT_DIR, PATH, and trust-certs.sh
   //   - Azure, Kubernetes, Bicep, pipeline and shellcheck extensions
   //
   // OPEN FROM WSL 2 (or macOS/Linux), i.e. a clone under /home/<you>. ADT bind-mounts workspace
@@ -12,7 +13,10 @@
   // outside the container. A Windows path (D:\...) is not a valid container path and VS Code
   // shows a blank window - clone into WSL and open it from there.
   "name": "i2 - ADT + Azure (open from WSL)",
-  "image": "i2group/i2eng-analyze-containers-dev:1.2",
+  // ADT's image i2group/i2eng-analyze-containers-dev:1.2 with the Azure tools already in it,
+  // built from .devcontainer/image by .github/workflows/devcontainer-image.yml.
+  // Using your own copy of this repo? Change the owner to yours.
+  "image": "ghcr.io/korin123/i2-devcontainer:latest",
   "remoteUser": "vscode",
   "runArgs": [
     "--init",
@@ -29,7 +33,7 @@
   ],
   "overrideCommand": false,
   "initializeCommand": "bash ./.devcontainer/adt/bootstrap init",
-  "onCreateCommand": "bash ./.devcontainer/adt/bootstrap create && bash ./.devcontainer/azure-tools.sh",
+  "onCreateCommand": "bash ./.devcontainer/adt/bootstrap create && bash ./.devcontainer/trust-certs.sh",
   "postStartCommand": "bash ./.devcontainer/adt/bootstrap start && bash ./.devcontainer/post-start.sh",
   "remoteEnv": {
     "DEVCONTAINER": "true",

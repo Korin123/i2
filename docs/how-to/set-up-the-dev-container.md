@@ -38,7 +38,7 @@ The first time, VS Code installs its WSL support, which takes a minute.
 **You should see:** VS Code with **WSL: Ubuntu** in the bottom-left corner.
 
 ### 5. Open the dev container
-**Do:** click **Reopen in Container** (or **F1 → Dev Containers: Reopen in Container**). The first build takes a few minutes.
+**Do:** click **Reopen in Container** (or **F1 → Dev Containers: Reopen in Container**). The first time, it downloads the ready-made image (about 4 GB); after that it opens in seconds.
 **You should see:** **Dev Container: i2 - ADT + Azure** in the bottom-left corner.
 
 ### 6. Sign in to Azure and create your settings
@@ -88,11 +88,20 @@ The first `git push` then opens a browser window to sign in to GitHub. The dev c
 - `adt/` (the licensed toolkit) and `scripts/env.sh` are git-ignored and never committed.
 - Moved the folder? VS Code builds the container again for the new location the first time. That is normal.
 
+## The dev container image
+
+The container uses a ready-made image, `ghcr.io/<owner>/i2-devcontainer:latest`: i2's ADT dev image with az, Bicep, kubectl and kubelogin added. Nothing is installed when the container opens.
+
+- **Built by:** GitHub Actions ([.github/workflows/devcontainer-image.yml](../../.github/workflows/devcontainer-image.yml)), whenever `.devcontainer/image/` changes on `main`, or by hand: GitHub → Actions → **Dev container image** → **Run workflow**.
+- **Update a tool version:** change the version in [.devcontainer/image/Dockerfile](../../.devcontainer/image/Dockerfile), push, wait for the workflow, then **F1 → Dev Containers: Rebuild Container**.
+- **Once, after the first build:** make the image public so any PC can download it without signing in. GitHub → your profile → **Packages** → `i2-devcontainer` → **Package settings** → **Change visibility** → **Public**.
+- **Your own copy of this repo:** change the owner in the `image` line of `.devcontainer/adt/devcontainer.json`.
+
 ## Certificate errors (corporate network)
 
-**Symptom:** `az` is missing after the container builds, and running `bash .devcontainer/azure-tools.sh` shows `self-signed certificate in certificate chain` or `CERTIFICATE_VERIFY_FAILED`.
+**Symptom:** inside the container, `az login`, `curl` or an ADT download fails with `self-signed certificate in certificate chain` or `CERTIFICATE_VERIFY_FAILED`.
 
-**Why:** your network inspects secure traffic and re-signs it with your organisation's own root certificate. Windows trusts it; the container does not yet.
+**Why:** your network inspects secure traffic and re-signs it with your organisation's own root certificate. Windows trusts it; the container does not yet. (Opening the container is not affected: the tools come ready-made in the image.)
 
 **Fix (once per PC):**
 
@@ -107,12 +116,12 @@ The first `git push` then opens a browser window to sign in to GitHub. The dev c
    ```
    **You should see:** `corp-root.crt` in your Downloads folder.
 2. **Put it in the repo.** Drag `corp-root.crt` from Downloads onto the `.devcontainer/certs` folder in the VS Code Explorer. It is git-ignored, never committed.
-3. **Install the tools again.** VS Code terminal:
+3. **Trust it.** VS Code terminal:
    ```bash
-   bash .devcontainer/azure-tools.sh
+   bash .devcontainer/trust-certs.sh
    ```
-   **You should see:** `Trusted 1 extra root CA(s)` and, at the end, `Azure tools installed`.
-4. Open a **new** terminal. `az version` now works. Future rebuilds of the container pick up the certificate automatically.
+   **You should see:** `Trusted 1 extra root CA(s) from .devcontainer/certs`.
+4. Try again (for example `az login`). Future rebuilds of the container pick up the certificate automatically.
 
 ## Problems
 
@@ -120,7 +129,8 @@ The first `git push` then opens a browser window to sign in to GitHub. The dev c
 |---|---|
 | VS Code window goes **blank** | The folder was opened from a Windows path (for example `D:\...`). Close it and open the WSL copy (step 4) |
 | `code: command not found` in Ubuntu | Install VS Code on Windows (tick **Add to PATH**), then close and reopen Ubuntu |
-| `az: command not found` in the container | Setup may still be running (wait, then new terminal). Otherwise run `bash .devcontainer/azure-tools.sh`; certificate error → [Certificate errors](#certificate-errors-corporate-network) |
+| `az: command not found` in the container | The container is using an old image. **F1 → Dev Containers: Rebuild Container** |
+| **Reopen in Container** fails with `denied` or `unauthorized` pulling `ghcr.io/...i2-devcontainer` | The image isn't public yet: see [The dev container image](#the-dev-container-image) |
 | **Reopen in Container** fails with a Docker error | Docker Desktop not running, or WSL integration for Ubuntu is off (step 1) |
 | Can't find the folder | In Ubuntu: `ls ~/dev/projects`. In Windows File Explorer: **Linux → Ubuntu → home → \<you\> → dev → projects → i2** |
 | Which Linux do I have? | PowerShell: `wsl -l -v`; the one marked `*` is the default |

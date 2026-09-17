@@ -1,0 +1,43 @@
+# Builds the dev container image (.devcontainer/image) and publishes it to GitHub Container
+# Registry as ghcr.io/<owner>/i2-devcontainer, so opening the dev container downloads one
+# ready-made image instead of installing tools inside it.
+name: Dev container image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .devcontainer/image/**
+      - .github/workflows/devcontainer-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name
+        id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/i2-devcontainer" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer/image
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.name.outputs.image }}:latest
+            ${{ steps.name.outputs.image }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
