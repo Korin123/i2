@@ -14,8 +14,8 @@
   ],
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "onCreateCommand": "bash .devcontainer/on-create.sh",
-  "postStartCommand": "bash .devcontainer/post-start.sh",
+  "onCreateCommand": "bash ./.devcontainer/azure-tools.sh",
+  "postStartCommand": "bash ./.devcontainer/post-start.sh",
   "remoteEnv": {
     "DEVCONTAINER": "true",
     "I2_DEVCONTAINER": "azure",

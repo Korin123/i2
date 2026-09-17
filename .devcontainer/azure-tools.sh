@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
-# One-time setup on top of i2's ADT dev image (UBI 9 minimal): join ADT's docker
-# network, then add the Azure tooling. The MS devcontainer features are apt-only,
-# hence installing here.
+# Azure tooling on top of i2's ADT dev image (UBI 9 minimal): az, Bicep, kubectl, kubelogin.
+# The MS devcontainer features are apt-only, hence installing here. Run by both
+# configurations' onCreateCommand (after ADT's own bootstrap in the ADT configuration).
 set -euo pipefail
-
-# Same as ADT's .devcontainer/bootstrap create: ADT's containers run on network "eia"
-if [[ -z "$(docker network ls -q --filter name='^eia$')" ]]; then
-  docker network create eia
-fi
-docker network connect eia "${HOSTNAME}" 2>/dev/null || true
 
 mkdir -p "$HOME/.local/bin"
 # a new named volume mounted at ~/.azure is root-owned; az needs to write there
