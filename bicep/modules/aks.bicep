@@ -94,6 +94,9 @@ resource solrPool 'Microsoft.ContainerService/managedClusters/agentPools@2024-09
 
 resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(aks.id, acrId, 'acrpull')
+  // Region policies that deny resources without a location allow 'global'
+  #disable-next-line BCP187
+  location: 'global'
   scope: resourceGroup()
   properties: {
     principalId: aks.properties.identityProfile.kubeletidentity.objectId
@@ -104,6 +107,9 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 resource deployerClusterAdmin 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerObjectId)) {
   name: guid(aks.id, deployerObjectId, 'aks-rbac-cluster-admin')
+  // Region policies that deny resources without a location allow 'global'
+  #disable-next-line BCP187
+  location: 'global'
   scope: aks
   properties: {
     principalId: deployerObjectId

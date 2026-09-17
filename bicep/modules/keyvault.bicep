@@ -38,6 +38,9 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
 
 resource secretsOfficer 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerObjectId)) {
   name: guid(kv.id, deployerObjectId, secretsOfficerRoleId)
+  // Region policies that deny resources without a location allow 'global'
+  #disable-next-line BCP187
+  location: 'global'
   scope: kv
   properties: {
     principalId: deployerObjectId

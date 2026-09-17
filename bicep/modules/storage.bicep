@@ -47,6 +47,9 @@ resource pepDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05
 
 resource blobReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(readerObjectId)) {
   name: guid(sa.id, readerObjectId, blobDataReaderRoleId)
+  // Region policies that deny resources without a location allow 'global'
+  #disable-next-line BCP187
+  location: 'global'
   scope: sa
   properties: {
     principalId: readerObjectId

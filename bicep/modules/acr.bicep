@@ -49,6 +49,9 @@ resource pepDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05
 
 resource push 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (hasPushGroup) {
   name: guid(acr.id, pushGroupObjectId, acrPushRoleId)
+  // Region policies that deny resources without a location allow 'global'
+  #disable-next-line BCP187
+  location: 'global'
   scope: acr
   properties: {
     principalId: pushGroupObjectId

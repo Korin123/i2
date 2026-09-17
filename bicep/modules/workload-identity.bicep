@@ -35,6 +35,9 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' existing = { name: last(split
 
 resource secretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(keyVaultId, uami.id, secretsUserRoleId)
+  // Region policies that deny resources without a location allow 'global'
+  #disable-next-line BCP187
+  location: 'global'
   scope: kv
   properties: {
     principalId: uami.properties.principalId

@@ -35,6 +35,9 @@ var grafanaAdminRoleId = '22926164-76b3-42b3-bc55-97df8dab3e41' // Grafana Admin
 var hasAdminGroup = grafanaAdminGroupObjectId != '00000000-0000-0000-0000-000000000000'
 resource grafanaAdmin 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (hasAdminGroup) {
   name: guid(grafana.id, grafanaAdminGroupObjectId, grafanaAdminRoleId)
+  // Region policies that deny resources without a location allow 'global'
+  #disable-next-line BCP187
+  location: 'global'
   scope: grafana
   properties: {
     principalId: grafanaAdminGroupObjectId
