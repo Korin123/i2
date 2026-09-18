@@ -211,7 +211,6 @@ module aks 'modules/aks.bicep' = {
     adminGroupObjectId: aksAdminGroupObjectId
     deployerObjectId: deployerObjectId
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
-    acrId: acr.outputs.acrId
     outboundType: aksOutboundType
     tags: tags
   }

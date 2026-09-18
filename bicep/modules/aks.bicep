@@ -9,7 +9,6 @@ param nodeSubnetId string
 param adminGroupObjectId string
 param deployerObjectId string = ''
 param logAnalyticsWorkspaceId string
-param acrId string
 @allowed([ 'loadBalancer', 'userDefinedRouting' ])
 param outboundType string = 'loadBalancer'
 @description('Dedicated Solr pool: one node per Solr replica (zone anti-affinity).')
@@ -93,7 +92,9 @@ resource solrPool 'Microsoft.ContainerService/managedClusters/agentPools@2024-09
 }
 
 resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aks.id, acrId, 'acrpull')
+  // Named from the scope, not the registry: the grant is on the resource group, so renaming
+  // the registry must not produce a second assignment (RoleAssignmentExists).
+  name: guid(aks.id, resourceGroup().id, 'acrpull')
   // Region policies that deny resources without a location allow 'global'
   #disable-next-line BCP187
   location: 'global'
