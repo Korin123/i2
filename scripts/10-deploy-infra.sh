@@ -32,7 +32,9 @@ export SQL_MI_ADMIN_PASSWORD="$MI_ADMIN_PW"
 
 # Once the SQL MI network exists, Azure owns the rules in its NSG and route table; declaring
 # them again is rejected (ConflictWithNetworkIntentPolicy), so tell Bicep to leave them alone.
-if [[ -n "$(az network route-table list --query "[?name=='rt-i2-sqlmi-${I2_ENV}-001'].id | [0]" -o tsv 2>/dev/null)" ]]; then
+existing_mi_net="$(az resource list --subscription "$SUBSCRIPTION_ID" \
+  --query "[?name=='rt-i2-sqlmi-${I2_ENV}-001' || name=='nsg-i2-sqlmi-${I2_ENV}-001'].id | [0]" -o tsv 2>/dev/null || true)"
+if [[ -n "$existing_mi_net" ]]; then
   args+=( --parameters sqlMiNetworkExists=true )
   log "SQL MI network already exists: leaving its NSG and route table to Azure"
 fi
