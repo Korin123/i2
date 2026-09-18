@@ -47,32 +47,6 @@ if [[ -n "${ALLOWED_TEST_IPS:-}" ]]; then
   log "Allowing test IPs through the Key Vault and ACR firewalls: ${ALLOWED_TEST_IPS}"
 fi
 
-# Azure DevOps agents inside the VNet (Managed DevOps Pool). Normally created once in the portal
-# (it registers in Azure DevOps as the person creating it) and only used here by name
-# (VNET_AGENT_POOL). CREATE_VNET_AGENT_POOL=true makes this deployment create it instead; the
-# pipeline's identity then needs Administrator on agent pools in the Azure DevOps organisation.
-# The organisation and project come from the pipeline run itself.
-if [[ "${CREATE_VNET_AGENT_POOL:-false}" == true && -n "${VNET_AGENT_POOL:-}" ]]; then
-  ADO_ORG_URL="${ADO_ORG_URL:-${SYSTEM_COLLECTIONURI:-}}"; ADO_ORG_URL="${ADO_ORG_URL%/}"
-  ADO_PROJECT="${ADO_PROJECT:-${SYSTEM_TEAMPROJECT:-}}"
-  [[ -n "$ADO_ORG_URL" && -n "$ADO_PROJECT" ]] || {
-    echo "VNET_AGENT_POOL is set but the Azure DevOps organisation/project are unknown: run from the pipeline, or set ADO_ORG_URL and ADO_PROJECT" >&2; exit 1; }
-  # Microsoft's DevOpsInfrastructure service principal (fixed app ID) joins the agents to the VNet
-  DEVOPS_INFRA_SP_OBJECT_ID="${DEVOPS_INFRA_SP_OBJECT_ID:-$(az ad sp show --id 31687f79-5e43-4c1e-8c63-d9f4bff5cf8b --query id -o tsv 2>/dev/null || true)}"
-  [[ -n "$DEVOPS_INFRA_SP_OBJECT_ID" ]] || {
-    echo "Could not look up the DevOpsInfrastructure service principal. Set DEVOPS_INFRA_SP_OBJECT_ID in the variable group:" >&2
-    echo "  az ad sp show --id 31687f79-5e43-4c1e-8c63-d9f4bff5cf8b --query id -o tsv" >&2; exit 1; }
-  for rp in Microsoft.DevOpsInfrastructure Microsoft.DevCenter; do
-    if [[ "$(az provider show --subscription "$SUBSCRIPTION_ID" -n "$rp" --query registrationState -o tsv 2>/dev/null)" != Registered ]]; then
-      log "Registering resource provider $rp (one-time, a few minutes)"
-      az provider register --subscription "$SUBSCRIPTION_ID" -n "$rp" --wait
-    fi
-  done
-  args+=( --parameters devOpsPoolName="$VNET_AGENT_POOL" devOpsOrganizationUrl="$ADO_ORG_URL"
-          devOpsProjectName="$ADO_PROJECT" devOpsInfrastructurePrincipalId="$DEVOPS_INFRA_SP_OBJECT_ID" )
-  log "Managed DevOps Pool '$VNET_AGENT_POOL' for $ADO_ORG_URL, project '$ADO_PROJECT'"
-fi
-
 [[ -n "${AKS_ADMIN_GROUP_OBJECT_ID:-}" ]] || log "WARNING: AKS_ADMIN_GROUP_OBJECT_ID is not set: nobody gets AKS admin, Grafana admin or ACR push (unless set in $BICEP_PARAM)"
 
 # The identity running the deployment needs Key Vault and AKS access for the later steps.

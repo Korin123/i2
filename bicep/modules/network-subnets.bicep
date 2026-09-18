@@ -50,13 +50,11 @@ output pepSubnetId string = pepSubnet.id
 output enrichSubnetId string = enrichSubnet.id
 output sqlMiSubnetId string = sqlMiSubnet.id
 
-// Azure DevOps agents in the VNet (Managed DevOps Pool): secrets, workload and sanity stages
+// self-hosted Azure DevOps agent VMs (secrets, workload and sanity stages need VNet access)
 resource agentsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
   name: '${existingVnetName}/snet-i2-agents'
   properties: {
     addressPrefix: cidrSubnet(i2AddressPrefix, 27, 7)   // .224/27
-    // Managed DevOps Pool (VNet-injected agents) requires this delegation
-    delegations: [ { name: 'devOpsPools', properties: { serviceName: 'Microsoft.DevOpsInfrastructure/pools' } } ]
   }
   dependsOn: [ sqlMiSubnet ]
 }

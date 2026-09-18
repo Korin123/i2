@@ -58,10 +58,9 @@ Commit and push it.
 **Do:** set **Infra** to `deploy`, leave everything else as it is. Run.
 **You should see:** DeployInfra succeeds after a few hours (the SQL Managed Instance is slow the first time) and prints the names it created (RG, KV, ACR, AKS, ...). Nothing needs copying: later steps read them.
 
-### 6. Agents inside the VNet
-**Where:** Azure portal, once.
-**Do:** create a Managed DevOps Pool in `snet-i2-agents`, named as `VNET_AGENT_POOL` ([set-up-azure-devops.md, step 5](set-up-azure-devops.md#5-agents-inside-the-i2-vnet-managed-devops-pool)).
-**You should see:** Project settings → Agent pools lists the pool. Its agents appear only while a job runs.
+### 6. Agent on the VNet
+**Do:** deploy a self-hosted agent VM into `snet-i2-agents`, in the pool named by `VNET_AGENT_POOL` ([set-up-azure-devops.md, step 5](set-up-azure-devops.md#5-self-hosted-agent-inside-the-i2-vnet)).
+**You should see:** the agent **Online** in the pool.
 
 ### 7. Secrets and certificates
 **Where:** Pipeline → Run pipeline.

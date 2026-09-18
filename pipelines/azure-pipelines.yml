@@ -72,7 +72,7 @@ stages:
       ${{ if parameters.infraOnMicrosoftHosted }}:
         vmImage: ubuntu-latest
       ${{ else }}:
-        name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
+        name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
     jobs:
       - job: validate
         steps:
@@ -103,7 +103,7 @@ stages:
       ${{ if parameters.infraOnMicrosoftHosted }}:
         vmImage: ubuntu-latest
       ${{ else }}:
-        name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
+        name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
     jobs:
       - deployment: infra
         environment: i2-${{ parameters.environment }}   # approvals/checks configured on the environment
@@ -131,7 +131,7 @@ stages:
     dependsOn: [ Validate, DeployInfra ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.seedSecrets }}', 'true'))
     pool:
-      name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
+      name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
     jobs:
       - job: seed
         steps:
@@ -149,7 +149,7 @@ stages:
     dependsOn: [ Validate, DeployInfra, SeedSecrets ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), ne('${{ parameters.workload }}', 'skip'))
     pool:
-      name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
+      name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
     jobs:
       - deployment: k8s
         environment: i2-${{ parameters.environment }}
@@ -172,7 +172,7 @@ stages:
     dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.runSanity }}', 'true'))
     pool:
-      name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
+      name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
     jobs:
       - job: sanity
         steps:

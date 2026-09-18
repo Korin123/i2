@@ -26,8 +26,7 @@ One-time setup so `pipelines/azure-pipelines.yml` can create and deploy an i2 en
 | `ADT_VERSION` | `3.2.2` |
 | `ALLOWED_TEST_IPS` | optional: public IPs (space-separated) allowed through the Key Vault and ACR firewalls, e.g. the PC that pushes images. Kept here, not in the repo |
 | `AKS_ADMIN_GROUP_OBJECT_ID` | Object ID of the Entra group that administers the environment (AKS cluster admin, Grafana admin, ACR push). Kept here, not in the repo |
-| `VNET_AGENT_POOL` | name of the in-VNet agent pool (step 5), e.g. `mdp-i2-alpha`. The secrets, workload and sanity stages run on it |
-| `CREATE_VNET_AGENT_POOL` | optional, `true` to have the Infra run create the pool (step 5, "Automate it instead") |
+| `VNET_AGENT_POOL` | agent pool of the self-hosted agent in the i2 VNet (step 5). The secrets, workload and sanity stages run on it |
 
 Resource names are not needed: the pipeline reads them from the infrastructure deployment.
 
@@ -51,25 +50,8 @@ Save. On the first run, approve the prompts to let the pipeline use the service 
 
 **You should see:** a manual run with nothing ticked: Validate green, every other stage skipped.
 
-## 5. Agents inside the i2 VNet (Managed DevOps Pool)
+## 5. Self-hosted agent inside the i2 VNet
 
-Key Vault, ACR and AKS are private, so the secrets, workload and sanity stages need agents inside the i2 VNet. Use a **Managed DevOps Pool** in the subnet the infrastructure creates for it, **`snet-i2-agents`** (already delegated to `Microsoft.DevOpsInfrastructure/pools`). Microsoft manages the VMs, image and agent software; there is no VM, SSH key or PAT, and it scales to zero when idle.
+Key Vault, ACR and AKS are private, so the secrets, workload and sanity stages need a self-hosted agent VM in the i2 subnet **`snet-i2-agents`**. Create it **after** the first Infra run, the same way you deploy your other self-hosted agents, and register it in an agent pool named as `VNET_AGENT_POOL` (step 2).
 
-Create it **once, after the first Infra run** (runbook step 5), in the portal. It registers in Azure DevOps as you, so it only needs the Azure DevOps rights you already use to create pools.
-
-1. **Resource providers** (once per subscription), in Cloud Shell:
-   ```bash
-   az provider register --subscription <subscription id> -n Microsoft.DevOpsInfrastructure
-   az provider register --subscription <subscription id> -n Microsoft.DevCenter
-   ```
-2. **Portal → Managed DevOps Pools → Create:**
-   - **Resource group:** `rg-i2-<env>-001`; **Dev Center project:** create new (for example `dcp-i2-<env>-001`)
-   - **Name:** the same as `VNET_AGENT_POOL` in the variable group (step 2), for example `mdp-i2-<env>`
-   - **Azure DevOps organisation and project:** this pipeline's
-   - **Image:** Azure Pipelines `ubuntu-22.04`; **Maximum agents:** 1; **Agent state:** stateless
-   - **Networking:** bring your own subnet → `vnet-i2-<env>-001` / `snet-i2-agents`
-3. **Azure DevOps → Project settings → Agent pools → the new pool → Security:** allow this pipeline to use it (or approve the prompt on the first run).
-
-**You should see:** Project settings → Agent pools lists the pool. Its agents appear only while a job is running.
-
-**Automate it instead (optional):** set `CREATE_VNET_AGENT_POOL` = `true` in the variable group and the Infra run creates the pool itself. That needs the service connection's identity added as a user in the Azure DevOps **organisation** with **Administrator** on agent pools, which requires organisation admin rights.
+**You should see:** the agent **Online** in that pool.

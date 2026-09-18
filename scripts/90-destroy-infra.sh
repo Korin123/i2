@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Destroy an environment: deletes its resource group (everything Bicep created, including the
-# VNet, AKS, SQL MI and the Managed DevOps Pool), purges the soft-deleted Key Vault so the same names
+# VNet, AKS, SQL MI and anything else in the group), purges the soft-deleted Key Vault so the same names
 # can be deployed again, and removes the subscription deployment record.
 # Asks you to type the environment name first; CONFIRM=<env> skips the question.
 # Deleting a SQL Managed Instance can take an hour or more.
@@ -38,4 +38,4 @@ fi
 
 az deployment sub delete -n "$DEPLOYMENT_NAME" >/dev/null 2>&1 || true
 log "Environment '$I2_ENV' destroyed."
-log "To recreate it: run the pipeline with Infra = deploy (runbook step 5), recreate the Managed DevOps Pool (step 6), then Secrets (step 7)."
+log "To recreate it: run the pipeline with Infra = deploy (runbook step 5), recreate the agent VM (step 6), then Secrets (step 7)."
