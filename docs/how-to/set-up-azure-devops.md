@@ -27,6 +27,7 @@ One-time setup so `pipelines/azure-pipelines.yml` can create and deploy an i2 en
 | `ALLOWED_TEST_IPS` | optional: public IPs (space-separated) allowed through the Key Vault and ACR firewalls, e.g. the PC that pushes images. Kept here, not in the repo |
 | `AKS_ADMIN_GROUP_OBJECT_ID` | Object ID of the Entra group that administers the environment (AKS cluster admin, Grafana admin, ACR push). Kept here, not in the repo |
 | `VNET_AGENT_POOL` | agent pool of the self-hosted agent in the i2 VNet (step 5). The secrets, workload and sanity stages run on it |
+| `ADO_AGENT_PAT` | **secret** (lock icon): PAT with Agent Pools (Read & manage), registers the agent VM (step 5) |
 
 Resource names are not needed: the pipeline reads them from the infrastructure deployment.
 
@@ -52,6 +53,10 @@ Save. On the first run, approve the prompts to let the pipeline use the service 
 
 ## 5. Self-hosted agent inside the i2 VNet
 
-Key Vault, ACR and AKS are private, so the secrets, workload and sanity stages need a self-hosted agent VM in the i2 subnet **`snet-i2-agents`**. Create it **after** the first Infra run, the same way you deploy your other self-hosted agents, and register it in an agent pool named as `VNET_AGENT_POOL` (step 2).
+Key Vault, ACR and AKS are private, so the secrets, workload and sanity stages run on a self-hosted agent VM in `snet-i2-agents`. The pipeline's **Agent** option deploys it (`bicep/agent.bicep`).
 
-**You should see:** the agent **Online** in that pool.
+1. **Agent pool:** Project settings → Agent pools → **Add pool** → Self-hosted, name it as `VNET_AGENT_POOL` (step 2), grant access to all pipelines.
+2. **PAT:** User settings → Personal access tokens → New token, scope **Agent Pools (Read & manage)**. Add it to the variable group as `ADO_AGENT_PAT` and click the **lock** to make it secret.
+3. **Run the pipeline** with **Agent** ticked (after Infra has run once).
+
+**You should see:** the agent `vm-i2-agent-<env>-001` **Online** in the pool within a few minutes.

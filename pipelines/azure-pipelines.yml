@@ -36,6 +36,10 @@ parameters:
     type: string
     default: 'skip'
     values: [ 'skip', 'preview', 'deploy' ]
+  - name: deployAgent
+    displayName: 'Agent: deploy the self-hosted agent VM in the i2 VNet'
+    type: boolean
+    default: false
   - name: seedSecrets
     displayName: 'Secrets: seed missing secrets + certs into Key Vault'
     type: boolean
@@ -127,8 +131,27 @@ stages:
                   env:
                     WHAT_IF: ${{ ne(parameters.infra, 'deploy') }}
 
-  - stage: SeedSecrets
+  # Creates the in-VNet agent the next stages run on, so it runs on a Microsoft-hosted agent.
+  - stage: DeployAgent
     dependsOn: [ Validate, DeployInfra ]
+    condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.deployAgent }}', 'true'))
+    pool:
+      vmImage: ubuntu-latest
+    jobs:
+      - job: agent
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Deploy self-hosted agent VM'
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: bash scripts/15-deploy-agent.sh
+            env:
+              ADO_AGENT_PAT: $(ADO_AGENT_PAT)   # secret variables must be passed in explicitly
+
+  - stage: SeedSecrets
+    dependsOn: [ Validate, DeployInfra, DeployAgent ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.seedSecrets }}', 'true'))
     pool:
       name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
@@ -146,7 +169,7 @@ stages:
               REISSUE_CERTS: ${{ parameters.reissueCerts }}
 
   - stage: DeployWorkload
-    dependsOn: [ Validate, DeployInfra, SeedSecrets ]
+    dependsOn: [ Validate, DeployInfra, DeployAgent, SeedSecrets ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), ne('${{ parameters.workload }}', 'skip'))
     pool:
       name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
@@ -169,7 +192,7 @@ stages:
                     DRY_RUN: ${{ ne(parameters.workload, 'deploy') }}
 
   - stage: Sanity
-    dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
+    dependsOn: [ Validate, DeployInfra, DeployAgent, SeedSecrets, DeployWorkload ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.runSanity }}', 'true'))
     pool:
       name: $(VNET_AGENT_POOL)   # self-hosted agent pool in the i2 VNet (variable group)
