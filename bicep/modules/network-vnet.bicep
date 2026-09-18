@@ -72,11 +72,13 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         }
       }
       {
-        // self-hosted Azure DevOps agents (secrets, workload and sanity stages need VNet access)
+        // Azure DevOps agents in the VNet (Managed DevOps Pool): secrets, workload and sanity stages
         name: 'snet-i2-agents'
         properties: {
           addressPrefix: cidrSubnet(addressPrefix, 27, 7)    // .224/27
           natGateway: { id: agentsNat.id }
+          // Managed DevOps Pool (VNet-injected agents) requires this delegation
+          delegations: [ { name: 'devOpsPools', properties: { serviceName: 'Microsoft.DevOpsInfrastructure/pools' } } ]
         }
       }
     ]
