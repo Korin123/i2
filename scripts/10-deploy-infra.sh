@@ -47,9 +47,12 @@ if [[ -n "${ALLOWED_TEST_IPS:-}" ]]; then
   log "Allowing test IPs through the Key Vault and ACR firewalls: ${ALLOWED_TEST_IPS}"
 fi
 
-# Azure DevOps agents inside the VNet (Managed DevOps Pool), when VNET_AGENT_POOL is set in the
-# variable group. The organisation and project come from the pipeline run itself.
-if [[ -n "${VNET_AGENT_POOL:-}" ]]; then
+# Azure DevOps agents inside the VNet (Managed DevOps Pool). Normally created once in the portal
+# (it registers in Azure DevOps as the person creating it) and only used here by name
+# (VNET_AGENT_POOL). CREATE_VNET_AGENT_POOL=true makes this deployment create it instead; the
+# pipeline's identity then needs Administrator on agent pools in the Azure DevOps organisation.
+# The organisation and project come from the pipeline run itself.
+if [[ "${CREATE_VNET_AGENT_POOL:-false}" == true && -n "${VNET_AGENT_POOL:-}" ]]; then
   ADO_ORG_URL="${ADO_ORG_URL:-${SYSTEM_COLLECTIONURI:-}}"; ADO_ORG_URL="${ADO_ORG_URL%/}"
   ADO_PROJECT="${ADO_PROJECT:-${SYSTEM_TEAMPROJECT:-}}"
   [[ -n "$ADO_ORG_URL" && -n "$ADO_PROJECT" ]] || {

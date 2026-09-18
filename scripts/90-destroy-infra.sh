@@ -38,4 +38,4 @@ fi
 
 az deployment sub delete -n "$DEPLOYMENT_NAME" >/dev/null 2>&1 || true
 log "Environment '$I2_ENV' destroyed."
-log "To recreate it: run the pipeline with Infra = deploy (runbook step 5, which also recreates the in-VNet agent pool), then Secrets (step 7)."
+log "To recreate it: run the pipeline with Infra = deploy (runbook step 5), recreate the Managed DevOps Pool (step 6), then Secrets (step 7)."
