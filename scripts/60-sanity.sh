@@ -17,7 +17,7 @@ DB_STEPS=(create_dba create_db_roles grant_permissions login_dbb login_i2analyze
           etl_sysadmin static_scripts dynamic_scripts role_i2_public role_deletion_rule)
 
 aks_login
-kv() { azs keyvault secret show --vault-name "$KV" -n "$1" --query value -o tsv; }
+kv() { az keyvault secret show --vault-name "$KV" -n "$1" --query value -o tsv; }
 
 failures=()
 pass() { echo "PASS  $1"; }

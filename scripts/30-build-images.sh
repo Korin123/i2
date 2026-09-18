@@ -94,12 +94,12 @@ if [[ "$MODE" != build ]]; then
 
   log "6) Mirror the i2 base images used as-is into ACR (server-side copy, no local Docker)"
   for img in i2group/i2eng-zookeeper:3.9; do
-    azs acr import --name "$ACR" --source "docker.io/${img}" --image "${img}" --force || \
+    az acr import --name "$ACR" --source "docker.io/${img}" --image "${img}" --force || \
       log "import ${img} failed - if DockerHub rate-limits, add --username/--password or pull/tag/push locally"
   done
 
   log "7) Tag + push to ${ACR_LS}"
-  azs acr login --name "$ACR"
+  az acr login --name "$ACR"
   for img in "${IMAGES[@]}"; do
     docker image inspect "$img" >/dev/null 2>&1 || { echo "missing local image $img - run: $0 build" >&2; exit 1; }
     target="${ACR_LS}/i2group/${img#i2group/}"

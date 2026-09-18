@@ -6,10 +6,6 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -f "$here/env.sh" ] && source "$here/env.sh"
 log() { echo ">>> $*"; }
-# Every Azure command names the subscription: with many subscriptions, relying on the CLI's
-# current one is unsafe. Use `azs ...` instead of `az ...` for anything subscription-scoped
-# (plain `az` stays for Entra commands like `az ad`, which are not).
-azs() { az "$@" --subscription "${SUBSCRIPTION_ID:?SUBSCRIPTION_ID is not set (scripts/env.sh or the pipeline variable group)}"; }
 ns=i2analyze
 export PATH="$PATH:$HOME/.local/bin"
 # One environment name drives the parameter file and the deployment name.
@@ -22,9 +18,9 @@ DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-i2-infra-${I2_ENV}}"
 # plus TENANT_ID from the signed-in account. A value already set (env.sh or the environment)
 # wins, so names can still be overridden.
 azure_outputs() {
-  : "${SUBSCRIPTION_ID:?SUBSCRIPTION_ID is not set}"
+  [[ -n "${SUBSCRIPTION_ID:-}" ]] && az account set --subscription "$SUBSCRIPTION_ID"
   local names
-  if ! names="$(azs deployment sub show -n "$DEPLOYMENT_NAME" --query "[
+  if ! names="$(az deployment sub show -n "$DEPLOYMENT_NAME" --query "[
         properties.outputs.resourceGroupName.value, properties.outputs.keyVaultName.value,
         properties.outputs.acrName.value, properties.outputs.aksClusterName.value,
         properties.outputs.workloadIdentityClientId.value, properties.outputs.sqlManagedInstanceFqdn.value]" \
@@ -36,7 +32,7 @@ azure_outputs() {
   { read -r out_rg; read -r out_kv; read -r out_acr; read -r out_aks; read -r out_wi; read -r out_mi; } <<<"$names"
   RG="${RG:-$out_rg}"; KV="${KV:-$out_kv}"; ACR="${ACR:-$out_acr}"; AKS="${AKS:-$out_aks}"
   WI_CLIENT_ID="${WI_CLIENT_ID:-$out_wi}"; MI_FQDN="${MI_FQDN:-$out_mi}"
-  TENANT_ID="${TENANT_ID:-$(azs account show --query tenantId -o tsv)}"
+  TENANT_ID="${TENANT_ID:-$(az account show --query tenantId -o tsv)}"
   export RG KV ACR AKS WI_CLIENT_ID MI_FQDN TENANT_ID
 }
 
@@ -60,7 +56,7 @@ ensure_tools() {
 aks_login() {
   : "${AKS:?set AKS}"; : "${RG:?set RG}"
   ensure_tools
-  azs aks get-credentials -g "$RG" -n "$AKS" --overwrite-existing >/dev/null
+  az aks get-credentials -g "$RG" -n "$AKS" --overwrite-existing >/dev/null
   kubelogin convert-kubeconfig -l azurecli >/dev/null
 }
 
@@ -73,7 +69,7 @@ require_images() { # repo:tag ...
   : "${ACR:?set ACR}"
   local img missing=()
   for img in "$@"; do
-    azs acr manifest show-metadata --registry "$ACR" --name "$img" >/dev/null 2>&1 || missing+=("$img")
+    az acr manifest show-metadata --registry "$ACR" --name "$img" >/dev/null 2>&1 || missing+=("$img")
   done
   if [[ ${#missing[@]} -gt 0 ]]; then
     printf 'Missing in %s.azurecr.io (run scripts/30-build-images.sh):\n' "$ACR" >&2
