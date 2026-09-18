@@ -19,6 +19,6 @@ log "Deploying agent VM vm-i2-agent-${I2_ENV}-001 into $RG (pool $VNET_AGENT_POO
 az deployment group create -g "$RG" -n i2-agent --template-file bicep/agent.bicep \
   --parameters environment="$I2_ENV" subnetId="$subnet" adminSshPublicKey="$(cat "$key.pub")" \
                adoOrganizationUrl="$ADO_ORG_URL" adoAgentPool="$VNET_AGENT_POOL" \
-               adoPat="$ADO_AGENT_PAT" forceUpdateTag="${AGENT_REINSTALL:-}" -o none
+               adoPat="$ADO_AGENT_PAT" forceUpdateTag="$(date +%s)" -o none
 rm -f "$key" "$key.pub"
 log "Agent deployed. It shows Online in pool $VNET_AGENT_POOL within a few minutes."

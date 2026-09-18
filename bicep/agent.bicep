@@ -18,7 +18,7 @@ param adoAgentPool string
 @secure()
 @description('PAT with Agent Pools (read, manage), used once to register the agent')
 param adoPat string
-@description('Change to re-run the install script on an existing VM')
+@description('Changes on every deploy (scripts/15), so the install script re-runs; it is safe to repeat')
 param forceUpdateTag string = ''
 param agentVersion string = '4.248.0'
 param tags object = {}
@@ -61,8 +61,14 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-07-01' = {
 var script = '''#!/bin/bash
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y curl jq git unzip libicu-dev ca-certificates
+# first boot: wait for cloud-init's own apt run, or both write the package lists at once
+cloud-init status --wait >/dev/null 2>&1 || true
+for i in 1 2 3 4 5; do
+  rm -rf /var/lib/apt/lists/partial/*
+  apt-get -o DPkg::Lock::Timeout=300 update && break
+  echo "apt-get update failed (attempt $i), retrying"; rm -rf /var/lib/apt/lists/*; sleep 20
+done
+apt-get -o DPkg::Lock::Timeout=300 install -y curl jq git unzip libicu-dev ca-certificates
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 AGENT_DIR=/home/{0}/agent
 sudo -u {0} mkdir -p "$AGENT_DIR" && cd "$AGENT_DIR"
