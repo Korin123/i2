@@ -26,6 +26,8 @@ One-time setup so `pipelines/azure-pipelines.yml` can create and deploy an i2 en
 | `ADT_VERSION` | `3.2.2` |
 | `ALLOWED_TEST_IPS` | optional: public IPs (space-separated) allowed through the Key Vault and ACR firewalls, e.g. the PC that pushes images. Kept here, not in the repo |
 | `AKS_ADMIN_GROUP_OBJECT_ID` | Object ID of the Entra group that administers the environment (AKS cluster admin, Grafana admin, ACR push). Kept here, not in the repo |
+| `VNET_AGENT_POOL` | name of the in-VNet agent pool the Infra run creates (step 5), e.g. `mdp-i2-alpha`. The secrets, workload and sanity stages run on it |
+| `DEVOPS_INFRA_SP_OBJECT_ID` | only if step 5 says so |
 
 Resource names are not needed: the pipeline reads them from the infrastructure deployment.
 
@@ -37,51 +39,31 @@ Resource names are not needed: the pipeline reads them from the infrastructure d
 ## 4. Pipeline
 
 **Where:** Pipelines → **New pipeline** → your repository → **Existing Azure Pipelines YAML file** → `/pipelines/azure-pipelines.yml`.
-**Do:** before saving, edit the defaults of the four **Setup** parameters at the top of the file (or commit the change):
+**Do:** before saving, edit the defaults of the three **Setup** parameters at the top of the file (or commit the change):
 
 | Parameter | Set default to |
 |---|---|
 | `environment` | `<env>` |
 | `serviceConnection` | the name from step 1 |
-| `vnetAgentPool` | the pool you create in step 5 |
-| `infraOnMicrosoftHosted` | `true` until the step 5 agent exists, then `false` if you prefer |
+| `infraOnMicrosoftHosted` | `true` (Infra must be able to run before the VNet and its agents exist) |
 
 Save. On the first run, approve the prompts to let the pipeline use the service connection, variable group, environment and pool.
 
 **You should see:** a manual run with nothing ticked: Validate green, every other stage skipped.
 
-## 5. Self-hosted agent on the i2 VNet
+## 5. Agents inside the i2 VNet (Managed DevOps Pool)
 
-Key Vault, ACR and AKS are private, so the secrets, workload and sanity stages need an agent that can reach the i2 VNet. The infrastructure deployment creates the subnet **`snet-i2-agents`** for it (output `agentsSubnetId`). Create the agent **after** the infrastructure exists (runbook step 5).
+Key Vault, ACR and AKS are private, so the secrets, workload and sanity stages need agents inside the i2 VNet. The **Infra** stage creates them: a **Managed DevOps Pool** in `snet-i2-agents`. Microsoft manages the VMs, image and agent software; there is no VM, SSH key or PAT to look after, and it scales to zero when idle.
 
-**5a. Agent pool.** Project settings → Agent pools → **Add pool** → Self-hosted, name it (for example `i2-vnet-agents`), grant access to all pipelines.
+It is named by `VNET_AGENT_POOL` in the variable group (step 2). The Azure DevOps organisation and project come from the pipeline run itself. Leave `VNET_AGENT_POOL` unset to skip it and use an agent pool you manage yourself.
 
-**5b. Personal access token for registration.** User settings → Personal access tokens → New token, scope **Agent Pools (read, manage)**, short expiry. Keep it for 5c; it is only used to register the agent.
+**Once per organisation, before the first Infra run with `VNET_AGENT_POOL` set:** the pipeline's identity creates the agent pool in Azure DevOps, so it needs permission to.
+1. **Organization settings → Users → Add users:** search for the service connection's app registration (step 1; **Manage App registration** on the service connection shows its name). Access level **Basic**, add to this project.
+2. **Organization settings → Agent pools → Security:** add that same identity with role **Administrator**.
 
-**5c. Agent VM** (Azure CLI, in the dev container). Replace the values in `<>`:
+**Automatic, the first time:** the Infra run registers the `Microsoft.DevOpsInfrastructure` and `Microsoft.DevCenter` resource providers if needed, and looks up Microsoft's `DevOpsInfrastructure` service principal to let it place agents in the VNet. If that lookup fails (the service connection cannot read Entra ID), find it yourself and add it to the variable group as `DEVOPS_INFRA_SP_OBJECT_ID`:
 ```bash
-RG=<resource group from the infra run>
-SUBNET_ID=$(az deployment sub show -n i2-infra-<env> --query properties.outputs.agentsSubnetId.value -o tsv)
-az vm create -g "$RG" -n vm-i2-agent-<env>-001 --image Ubuntu2204 --size Standard_D2s_v5 \
-  --subnet "$SUBNET_ID" --public-ip-address "" --nsg "" \
-  --admin-username azureuser --generate-ssh-keys --assign-identity
+az ad sp show --id 31687f79-5e43-4c1e-8c63-d9f4bff5cf8b --query id -o tsv
 ```
-The VM has no public IP and no inbound access. With `networkMode = 'new'` it reaches the internet through the NAT gateway on `snet-i2-agents`; with an existing VNet it needs your normal outbound route. Install the agent without logging in to the VM (Run Command):
-```bash
-az vm run-command invoke -g "$RG" -n vm-i2-agent-<env>-001 --command-id RunShellScript --scripts '
-  set -e
-  apt-get update -y && apt-get install -y curl jq git unzip docker.io
-  curl -sL https://aka.ms/InstallAzureCLIDeb | bash
-  useradd -m -s /bin/bash azagent && usermod -aG docker azagent
-  cd /home/azagent && mkdir agent && cd agent
-  curl -fsSL -o agent.tgz https://download.agent.dev.azure.com/agent/4.255.0/vsts-agent-linux-x64-4.255.0.tar.gz
-  tar -xzf agent.tgz && chown -R azagent: /home/azagent
-  sudo -u azagent ./config.sh --unattended --url https://dev.azure.com/<organisation> \
-    --auth pat --token <PAT from 5b> --pool <pool from 5a> --agent vm-i2-agent-<env>-001 --acceptTeeEula
-  ./svc.sh install azagent && ./svc.sh start'
-```
-Check the current agent version on the [Azure Pipelines agent releases page](https://github.com/microsoft/azure-pipelines-agent/releases) and adjust the download URL if needed.
 
-**You should see:** the agent **Online** in the pool. Then revoke the token from 5b.
-
-**Alternatives:** an existing self-hosted agent that already has network access to the i2 VNet (peering or VPN), or [Managed DevOps Pools](https://learn.microsoft.com/azure/devops/managed-devops-pools/) with VNet injection into `snet-i2-agents`.
+**You should see:** after an Infra run, **Project settings → Agent pools** lists `VNET_AGENT_POOL`; its agents appear only while a job is running.

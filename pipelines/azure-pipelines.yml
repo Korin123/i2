@@ -9,7 +9,8 @@
 #   scripts/30-build-images.sh, not here. Deploy stages check the images exist in ACR first.
 #
 # One-time setup per organisation (docs/how-to/set-up-azure-devops.md): set the defaults of the
-# four "Setup" parameters below to your environment, service connection and agent pools.
+# three "Setup" parameters below. Environment-specific names live in the variable group
+# i2-<environment> (Pipelines > Library), including VNET_AGENT_POOL, the in-VNet agent pool.
 # See docs/how-to/runbook.md for the order of runs.
 
 trigger: none
@@ -25,10 +26,6 @@ parameters:
     displayName: 'Setup: Azure Resource Manager service connection'
     type: string
     default: 'DFN-ADO-CONN'
-  - name: vnetAgentPool
-    displayName: 'Setup: self-hosted agent pool with network access to the i2 VNet (for secrets, workload, sanity)'
-    type: string
-    default: 'i2-vnet-agents'
   - name: infraOnMicrosoftHosted
     displayName: 'Setup: run Validate and Infra on Microsoft-hosted agents (use for the first deployment, before the VNet exists)'
     type: boolean
@@ -62,7 +59,7 @@ parameters:
     default: false
 
 variables:
-  # SUBSCRIPTION_ID, LOCATION, I2_VERSION, ADT_VERSION. Resource names come from the deployment outputs.
+  # SUBSCRIPTION_ID, LOCATION, I2_VERSION, ADT_VERSION, VNET_AGENT_POOL, ... Resource names come from the deployment outputs.
   - group: i2-${{ parameters.environment }}
   - name: I2_ENV
     value: ${{ parameters.environment }}
@@ -75,7 +72,7 @@ stages:
       ${{ if parameters.infraOnMicrosoftHosted }}:
         vmImage: ubuntu-latest
       ${{ else }}:
-        name: ${{ parameters.vnetAgentPool }}
+        name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
     jobs:
       - job: validate
         steps:
@@ -106,7 +103,7 @@ stages:
       ${{ if parameters.infraOnMicrosoftHosted }}:
         vmImage: ubuntu-latest
       ${{ else }}:
-        name: ${{ parameters.vnetAgentPool }}
+        name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
     jobs:
       - deployment: infra
         environment: i2-${{ parameters.environment }}   # approvals/checks configured on the environment
@@ -134,7 +131,7 @@ stages:
     dependsOn: [ Validate, DeployInfra ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.seedSecrets }}', 'true'))
     pool:
-      name: ${{ parameters.vnetAgentPool }}
+      name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
     jobs:
       - job: seed
         steps:
@@ -152,7 +149,7 @@ stages:
     dependsOn: [ Validate, DeployInfra, SeedSecrets ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), ne('${{ parameters.workload }}', 'skip'))
     pool:
-      name: ${{ parameters.vnetAgentPool }}
+      name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
     jobs:
       - deployment: k8s
         environment: i2-${{ parameters.environment }}
@@ -175,7 +172,7 @@ stages:
     dependsOn: [ Validate, DeployInfra, SeedSecrets, DeployWorkload ]
     condition: and(not(failed()), not(canceled()), eq(variables.isManual, true), eq('${{ parameters.runSanity }}', 'true'))
     pool:
-      name: ${{ parameters.vnetAgentPool }}
+      name: $(VNET_AGENT_POOL)   # Managed DevOps Pool in the i2 VNet (variable group)
     jobs:
       - job: sanity
         steps:

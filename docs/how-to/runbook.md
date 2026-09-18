@@ -39,7 +39,7 @@ Commit and push it.
 
 ### 3. Azure DevOps
 **Where:** Azure DevOps.
-**Do:** follow [set-up-azure-devops.md](set-up-azure-devops.md): service connection, variable group `i2-<env>`, environment `i2-<env>`, create the pipeline, set its four Setup defaults.
+**Do:** follow [set-up-azure-devops.md](set-up-azure-devops.md): service connection, variable group `i2-<env>`, environment `i2-<env>`, create the pipeline, set its three Setup defaults.
 **You should see:** a manual run with nothing ticked finishes with only Validate green.
 
 ---
@@ -58,10 +58,9 @@ Commit and push it.
 **Do:** set **Infra** to `deploy`, leave everything else as it is. Run.
 **You should see:** DeployInfra succeeds after a few hours (the SQL Managed Instance is slow the first time) and prints the names it created (RG, KV, ACR, AKS, ...). Nothing needs copying: later steps read them.
 
-### 6. Agent on the VNet
-**Where:** Azure portal / Azure CLI and Azure DevOps.
-**Do:** create a self-hosted agent in the `snet-i2-agents` subnet and add it to your VNet agent pool ([set-up-azure-devops.md, step 5](set-up-azure-devops.md#5-self-hosted-agent-on-the-i2-vnet)).
-**You should see:** the agent shows **Online** in the pool.
+### 6. Agents inside the VNet
+**Where:** nothing to do if `VNET_AGENT_POOL` is set: step 5 created a Managed DevOps Pool ([set-up-azure-devops.md, step 5](set-up-azure-devops.md#5-agents-inside-the-i2-vnet-managed-devops-pool)).
+**You should see:** Project settings → Agent pools lists the pool. Its agents appear only while a job runs.
 
 ### 7. Secrets and certificates
 **Where:** Pipeline → Run pipeline.

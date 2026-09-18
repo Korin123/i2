@@ -86,6 +86,19 @@ param sqlMiNetworkExists bool = false
 @description('Optional Entra admin group object ID for MI management-plane admin.')
 param sqlMiEntraAdminGroupObjectId string = ''
 
+// --- Azure DevOps agents in the VNet (Managed DevOps Pool) ---
+@description('Agent pool name for the secrets, workload and sanity stages (VNET_AGENT_POOL in the variable group). Empty = no pool is created (use one you manage yourself).')
+param devOpsPoolName string = ''
+
+@description('Azure DevOps organisation URL (the pipeline passes System.CollectionUri).')
+param devOpsOrganizationUrl string = ''
+
+@description('Azure DevOps project allowed to use the pool (the pipeline passes System.TeamProject).')
+param devOpsProjectName string = ''
+
+@description('Object ID of the DevOpsInfrastructure service principal in this tenant (looked up by scripts/10-deploy-infra.sh).')
+param devOpsInfrastructurePrincipalId string = ''
+
 @description('Tags applied to every resource. Add owner, cost centre etc. in the parameter file.')
 param tags object = {
   workload: 'i2-analyze'
@@ -245,6 +258,33 @@ module sqlMi 'modules/sql-mi.bicep' = {
   }
 }
 
+
+// Azure DevOps agents inside the VNet, for the stages that need the private endpoints
+var deployDevOpsPool = !empty(devOpsPoolName)
+var vnetName = newNetwork ? getResourceName('virtualNetwork', workload, environment, '001') : existingVnetName
+var agentsSubnetId = newNetwork ? vnet!.outputs.agentsSubnetId : subnets!.outputs.agentsSubnetId
+
+module devOpsRoles 'modules/network-devops-roles.bicep' = if (deployDevOpsPool) {
+  name: 'i2-devops-roles'
+  scope: resourceGroup(subscription().subscriptionId, newNetwork ? rgName : existingVnetResourceGroupName)
+  params: { vnetName: vnetName, principalId: devOpsInfrastructurePrincipalId }
+  dependsOn: [ vnet, subnets ]
+}
+
+module devOpsPool 'modules/devops-pool.bicep' = if (deployDevOpsPool) {
+  name: 'i2-devops-pool'
+  scope: rg
+  params: {
+    workload: workload, environment: environment, location: location
+    poolName: devOpsPoolName
+    organizationUrl: devOpsOrganizationUrl
+    projectName: devOpsProjectName
+    subnetId: agentsSubnetId
+    tags: tags
+  }
+  dependsOn: [ devOpsRoles ]
+}
+
 // Read by scripts/00-common.sh (azure_outputs), so resource names never need typing by hand
 output resourceGroupName string = rg.name
 output acrName string = acr.outputs.acrName
@@ -254,5 +294,6 @@ output keyVaultName string = keyVault.outputs.vaultName
 output storageAccountName string = storage.outputs.storageAccountName
 output workloadIdentityClientId string = workloadIdentity.outputs.clientId
 output sqlManagedInstanceFqdn string = sqlMi.outputs.managedInstanceFqdn
-@description('Where to place self-hosted Azure DevOps agent VMs (they need network access to the private Key Vault, ACR and AKS).')
-output agentsSubnetId string = newNetwork ? vnet!.outputs.agentsSubnetId : subnets!.outputs.agentsSubnetId
+@description('The agents subnet (Managed DevOps Pool, or any self-hosted agents that need the private Key Vault, ACR and AKS).')
+output agentsSubnetId string = agentsSubnetId
+output devOpsPoolName string = deployDevOpsPool ? devOpsPool!.outputs.poolName : ''
