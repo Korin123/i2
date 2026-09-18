@@ -9,10 +9,10 @@
 source "$(dirname "$0")/00-common.sh"
 azure_outputs
 
-kv_has() { az keyvault secret show --vault-name "$KV" -n "$1" >/dev/null 2>&1; }
-kv_get() { az keyvault secret show --vault-name "$KV" -n "$1" --query value -o tsv; }
-kv_set() { az keyvault secret set --vault-name "$KV" -n "$1" --value "$2" 1>/dev/null; }
-kv_set_file() { az keyvault secret set --vault-name "$KV" -n "$1" --file "$2" 1>/dev/null; }
+kv_has() { azs keyvault secret show --vault-name "$KV" -n "$1" >/dev/null 2>&1; }
+kv_get() { azs keyvault secret show --vault-name "$KV" -n "$1" --query value -o tsv; }
+kv_set() { azs keyvault secret set --vault-name "$KV" -n "$1" --value "$2" 1>/dev/null; }
+kv_set_file() { azs keyvault secret set --vault-name "$KV" -n "$1" --file "$2" 1>/dev/null; }
 rand_pw() { echo "$(openssl rand -base64 30 | tr -dc 'A-Za-z0-9' | head -c 24)"; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT; cd "$tmp"

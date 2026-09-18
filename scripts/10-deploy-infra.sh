@@ -8,13 +8,11 @@
 #   WHAT_IF=true scripts/10-deploy-infra.sh    preview the changes (az deployment what-if), deploy nothing
 source "$(dirname "$0")/00-common.sh"
 : "${SUBSCRIPTION_ID:?}"; : "${LOCATION:?}"; : "${BICEP_PARAM:?}"
-
-az account set --subscription "$SUBSCRIPTION_ID"
-az bicep restore --file bicep/main.bicep
+azs bicep restore --file bicep/main.bicep
 
 # Key Vault from a previous deployment, if there is one
-kv="${KV:-$(az deployment sub show -n "$DEPLOYMENT_NAME" --query properties.outputs.keyVaultName.value -o tsv 2>/dev/null || true)}"
-if [[ -n "$kv" ]] && MI_ADMIN_PW="$(az keyvault secret show --vault-name "$kv" -n sqlmi-admin-password --query value -o tsv 2>/dev/null)" \
+kv="${KV:-$(azs deployment sub show -n "$DEPLOYMENT_NAME" --query properties.outputs.keyVaultName.value -o tsv 2>/dev/null || true)}"
+if [[ -n "$kv" ]] && MI_ADMIN_PW="$(azs keyvault secret show --vault-name "$kv" -n sqlmi-admin-password --query value -o tsv 2>/dev/null)" \
    && [[ -n "$MI_ADMIN_PW" ]]; then
   log "Reusing the MI admin password from Key Vault $kv"
   new_pw=false
@@ -32,7 +30,7 @@ export SQL_MI_ADMIN_PASSWORD="$MI_ADMIN_PW"
 
 # Once the SQL MI network exists, Azure owns the rules in its NSG and route table; declaring
 # them again is rejected (ConflictWithNetworkIntentPolicy), so tell Bicep to leave them alone.
-existing_mi_net="$(az resource list --subscription "$SUBSCRIPTION_ID" \
+existing_mi_net="$(azs resource list \
   --query "[?name=='rt-i2-sqlmi-${I2_ENV}-001' || name=='nsg-i2-sqlmi-${I2_ENV}-001'].id | [0]" -o tsv 2>/dev/null || true)"
 if [[ -n "$existing_mi_net" ]]; then
   args+=( --parameters sqlMiNetworkExists=true )
@@ -61,23 +59,23 @@ fi
 WHAT_IF="${WHAT_IF:-false}"
 if [[ "${WHAT_IF,,}" == true ]]; then
   log "What-if for bicep/main.bicep (no changes are made)"
-  az deployment sub what-if "${args[@]}"
+  azs deployment sub what-if "${args[@]}"
   exit 0
 fi
 
 # Failed operations of a deployment, following nested module deployments down to the resource.
 show_failures() {   # $1 = subscription deployment name
-  az deployment sub show -n "$1" --query properties.error -o json 2>/dev/null || true
+  azs deployment sub show -n "$1" --query properties.error -o json 2>/dev/null || true
   local id rg name
   while read -r id; do
     [[ -z "$id" ]] && continue
     rg="$(cut -d/ -f5 <<<"$id")"; name="${id##*/}"
     echo "--- module $name (resource group $rg):"
-    az deployment operation group list -g "$rg" -n "$name" \
+    azs deployment operation group list -g "$rg" -n "$name" \
       --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.id, error:properties.statusMessage.error}" -o json 2>/dev/null || true
-  done < <(az deployment operation sub list --name "$1" \
+  done < <(azs deployment operation sub list --name "$1" \
     --query "[?properties.provisioningState=='Failed' && properties.targetResource.resourceType=='Microsoft.Resources/deployments'].properties.targetResource.id" -o tsv 2>/dev/null)
-  az deployment operation sub list --name "$1" \
+  azs deployment operation sub list --name "$1" \
     --query "[?properties.provisioningState=='Failed' && properties.targetResource.resourceType!='Microsoft.Resources/deployments'].{resource:properties.targetResource.id, error:properties.statusMessage.error}" -o json 2>/dev/null || true
 }
 
@@ -89,13 +87,13 @@ store_password() {   # $1 = resource group, $2 = Key Vault
   # Key Vault secret names allow only letters, digits and hyphens.
   log "Storing MI admin password in Key Vault $2 (sqlmi-admin-password)"
   local body; body="$(printf '{"properties":{"value":"%s"}}' "$MI_ADMIN_PW")"
-  az rest --method put --output none \
+  azs rest --method put --output none \
     --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/$1/providers/Microsoft.KeyVault/vaults/$2/secrets/sqlmi-admin-password?api-version=2023-07-01" \
     --body "$body"
 }
 
 log "Deploying bicep/main.bicep as '$DEPLOYMENT_NAME' (includes SQL MI - allow hours on first run)"
-az deployment sub create --name "$DEPLOYMENT_NAME" "${args[@]}" --no-wait
+azs deployment sub create --name "$DEPLOYMENT_NAME" "${args[@]}" --no-wait
 
 if $new_pw; then
   # Store the password as soon as the Key Vault exists, not when the whole deployment ends:
@@ -104,18 +102,18 @@ if $new_pw; then
   log "Waiting for the Key Vault module to finish, to store the MI admin password early"
   stored=false
   for _ in $(seq 1 120); do   # up to 60 min
-    kv_dep="$(az deployment operation sub list --name "$DEPLOYMENT_NAME" \
+    kv_dep="$(azs deployment operation sub list --name "$DEPLOYMENT_NAME" \
       --query "[?properties.targetResource.resourceName=='i2-keyvault'].properties.targetResource.id | [0]" -o tsv 2>/dev/null || true)"
     if [[ -n "$kv_dep" ]]; then
       kv_rg="$(cut -d/ -f5 <<<"$kv_dep")"
-      state="$(az deployment group show -g "$kv_rg" -n i2-keyvault --query properties.provisioningState -o tsv 2>/dev/null || true)"
+      state="$(azs deployment group show -g "$kv_rg" -n i2-keyvault --query properties.provisioningState -o tsv 2>/dev/null || true)"
       if [[ "$state" == Succeeded ]]; then
-        store_password "$kv_rg" "$(az deployment group show -g "$kv_rg" -n i2-keyvault --query properties.outputs.vaultName.value -o tsv)"
+        store_password "$kv_rg" "$(azs deployment group show -g "$kv_rg" -n i2-keyvault --query properties.outputs.vaultName.value -o tsv)"
         stored=true; break
       fi
       [[ "$state" == Failed ]] && break
     fi
-    [[ "$(az deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv 2>/dev/null)" =~ ^(Failed|Canceled)$ ]] && break
+    [[ "$(azs deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv 2>/dev/null)" =~ ^(Failed|Canceled)$ ]] && break
     sleep 30
   done
   $stored || log "MI admin password not stored yet (Key Vault not ready or the deployment failed). The next successful run sets a new one and stores it."
@@ -123,9 +121,9 @@ fi
 
 log "Waiting for the deployment to finish (SQL MI first creation takes hours). If this job times out,"
 log "the deployment carries on in Azure: check it in the portal (Subscription > Deployments > $DEPLOYMENT_NAME)."
-az deployment sub wait --name "$DEPLOYMENT_NAME" --custom "properties.provisioningState!='Running' && properties.provisioningState!='Accepted'" --interval 60 --timeout 43200 \
+azs deployment sub wait --name "$DEPLOYMENT_NAME" --custom "properties.provisioningState!='Running' && properties.provisioningState!='Accepted'" --interval 60 --timeout 43200 \
   || true   # returns an error when the deployment failed; the state is checked below
-state="$(az deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv)"
+state="$(azs deployment sub show -n "$DEPLOYMENT_NAME" --query properties.provisioningState -o tsv)"
 if [[ "$state" != Succeeded ]]; then
   log "Deployment $DEPLOYMENT_NAME: $state. Errors:"
   show_failures "$DEPLOYMENT_NAME"
